@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: serviceupload-service
+  namespace: pnud-agvm
+spec:
+  selector:
+    app: serviceupload
+  ports:
+    - protocol: TCP
+      port: 5012
+      targetPort: 5012
+      nodePort: 30512
+  type: NodePort

@@ -1,0 +1,73 @@
+# Étape 1 : Construire l'application
+FROM node:20-slim AS builder
+WORKDIR /app
+
+# Copier les fichiers nécessaires pour installer les dépendances
+COPY package.json package-lock.json ./
+RUN npm ci && npm cache clean --force
+
+# Copier le reste du code source
+COPY . .
+
+# Construire l'application Vite (React)
+RUN npm run build
+
+# Étape 2 : Image finale pour l'exécution
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# Copier uniquement les fichiers nécessaires pour exécuter l'application
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+
+# Définir les variables d'environnement
+ARG VITE_API_GATEWAY=
+ARG VITE_API_AUTH=
+ARG VITE_API_PUBLICATION=
+ARG VITE_API_CITOYEN=
+ARG VITE_API_SIGNAL=
+ARG VITE_API_ENTREPRISE=
+ARG VITE_API_RECETTE=
+ARG VITE_API_TERRITOIRE=
+ARG VITE_API_TRESORIER=
+ARG VITE_API_OFFRE_COMMUNE=
+ARG VITE_API_PROJET=
+ARG VITE_API_SUGGESTION=
+ARG VITE_API_COOPERATIVE=
+ARG VITE_API_UPLOAD=
+ARG VITE_API_NOTIFICATION=
+ARG VITE_API_PAIEMENT=
+ARG VITE_API_FORUM=
+ARG VITE_API_THEME=
+
+ENV VITE_API_GATEWAY=${VITE_API_GATEWAY}
+ENV VITE_API_AUTH=${VITE_API_AUTH}
+ENV VITE_API_PUBLICATION=${VITE_API_PUBLICATION}
+ENV VITE_API_CITOYEN=${VITE_API_CITOYEN}
+ENV VITE_API_SIGNAL=${VITE_API_SIGNAL}
+ENV VITE_API_ENTREPRISE=${VITE_API_ENTREPRISE}
+ENV VITE_API_RECETTE=${VITE_API_RECETTE}
+ENV VITE_API_TERRITOIRE=${VITE_API_TERRITOIRE}
+ENV VITE_API_TRESORIER=${VITE_API_TRESORIER}
+ENV VITE_API_OFFRE_COMMUNE=${VITE_API_OFFRE_COMMUNE}
+ENV VITE_API_PROJET=${VITE_API_PROJET}
+ENV VITE_API_SUGGESTION=${VITE_API_SUGGESTION}
+ENV VITE_API_COOPERATIVE=${VITE_API_COOPERATIVE}
+ENV VITE_API_UPLOAD=${VITE_API_UPLOAD}
+ENV VITE_API_NOTIFICATION=${VITE_API_NOTIFICATION}
+ENV VITE_API_PAIEMENT=${VITE_API_PAIEMENT}
+ENV VITE_API_FORUM=${VITE_API_FORUM}
+ENV VITE_API_THEME=${VITE_API_THEME}
+
+ENV NODE_ENV production
+ENV PORT 4004
+
+# Exposer le port
+EXPOSE 4004
+
+# Utiliser un utilisateur non-root par sécurité
+USER node
+
+# Lancer l'application
+CMD ["npx", "serve", "-s", "dist", "-l", "4004"]

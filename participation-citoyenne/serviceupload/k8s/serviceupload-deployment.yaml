@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: serviceupload-deployment
+  namespace: pnud-agvm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: serviceupload
+  template:
+    metadata:
+      labels:
+        app: serviceupload
+    spec:
+      containers:
+      - name: serviceupload
+        image: harbor.tsirylab.com/pnud-agvm/serviceupload:latest
+        ports:
+        - containerPort: 5012
+        env:
+        - name: MINIO_END_POINT
+          valueFrom:
+            secretKeyRef:
+              name: serviceupload-secret
+              key: MINIO_END_POINT
+        - name: MINIO_PORT
+          valueFrom:
+            secretKeyRef:
+              name: serviceupload-secret
+              key: MINIO_PORT
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: serviceupload-secret
+              key: MINIO_ACCESS_KEY
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: serviceupload-secret
+              key: MINIO_SECRET_KEY
+        - name: MINIO_BUCKET
+          value: "diamadio"
+        - name: PORT
+          value: "5012"
+        - name: CORS_ORIGIN
+          value: "*"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /serviceupload
+            port: 5012
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /serviceupload
+            port: 5012
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      imagePullSecrets:
+      - name: harbor-registry-secret
