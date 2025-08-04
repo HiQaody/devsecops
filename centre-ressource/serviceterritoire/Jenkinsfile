@@ -79,7 +79,8 @@ pipeline {
                                 --from-literal=POSTGRES_PORT="${POSTGRES_PORT}" \\
                                 --from-literal=POSTGRES_USER="${POSTGRES_USER}" \\
                                 --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \\
-                                --from-literal=API_GATEWAY_URL="${API_GATEWAY_URL}"
+                                --from-literal=API_GATEWAY_URL="${API_GATEWAY_URL}" \\
+                                --from-literal=IMAGE_URL="${API_GATEWAY_URL}/serviceupload"
                             kubectl apply -f ${K8S_DIR}/territoryservice-deployment.yaml
                             kubectl apply -f ${K8S_DIR}/territoryservice-service.yaml
                         """

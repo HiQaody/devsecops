@@ -10,5 +10,5 @@ spec:
     - protocol: TCP
       port: 5005
       targetPort: 5005
-      nodePort: 35005
+      nodePort: 30025
   type: NodePort
