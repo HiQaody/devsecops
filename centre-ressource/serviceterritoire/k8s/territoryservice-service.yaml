@@ -10,4 +10,5 @@ spec:
     - protocol: TCP
       port: 5005
       targetPort: 5005
-  type: ClusterIP
+      nodePort: 30025
+  type: NodePort
