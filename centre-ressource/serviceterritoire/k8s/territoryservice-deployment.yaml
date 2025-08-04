@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: territoryservice-deployment
+  namespace: pnud-agvm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: territoryservice
+  template:
+    metadata:
+      labels:
+        app: territoryservice
+    spec:
+      containers:
+      - name: territoryservice
+        image: harbor.tsirylab.com/pnud-agvm/territoryservice:latest
+        ports:
+        - containerPort: 5005
+        env:
+        - name: POSTGRES_HOST
+          valueFrom:
+            secretKeyRef:
+              name: territoryservice-secret
+              key: POSTGRES_HOST
+        - name: POSTGRES_PORT
+          valueFrom:
+            secretKeyRef:
+              name: territoryservice-secret
+              key: POSTGRES_PORT
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: territoryservice-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: territoryservice-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          value: "territoryservice"
+        - name: PORT
+          value: "5005"
+        - name: API_GATEWAY_URL
+          valueFrom:
+            secretKeyRef:
+              name: territoryservice-secret
+              key: API_GATEWAY_URL
+        - name: IMAGE_URL
+          value: "$(API_GATEWAY_URL)/serviceupload" # voir remarque ci-dessous
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5005
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5005
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      imagePullSecrets:
+      - name: harbor-registry-secret
