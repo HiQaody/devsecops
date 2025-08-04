@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-agvm-deployment
+  namespace: pnud-agvm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin-agvm
+  template:
+    metadata:
+      labels:
+        app: admin-agvm
+    spec:
+      containers:
+      - name: admin-agvm
+        image: harbor.tsirylab.com/pnud-agvm/admin-agvm:latest
+        ports:
+        - containerPort: 4006
+        env:
+        - name: VITE_API_URL
+          valueFrom:
+            secretKeyRef:
+              name: admin-agvm-apiurl-secret
+              key: VITE_API_URL
+        - name: VITE_PORT
+          value: "4006"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 4006
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4006
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      imagePullSecrets:
+      - name: harbor-registry-secret

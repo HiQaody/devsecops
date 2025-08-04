@@ -1,0 +1,115 @@
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY = "harbor.tsirylab.com"
+        HARBOR_PROJECT = "pnud-agvm"
+        IMAGE_NAME = "agvm-client"
+        IMAGE_TAG = "latest"
+        FULL_IMAGE_NAME = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
+        DEPLOYMENT_NAME = "agvm-client-deployment"
+        NAMESPACE = "pnud-agvm"
+        VITE_API_TIMEOUT = '100000'
+        VITE_API_AUTH = '/serviceauth'
+        VITE_API_PUBLICATION = '/servicepublication'
+        VITE_API_CITOYEN = '/servicecitoyen'
+        VITE_API_SIGNAL = '/servicesignal'
+        VITE_API_ENTREPRISE = '/serviceentreprise'
+        VITE_API_RECETTE = '/servicerecette'
+        VITE_API_TERRITOIRE = '/serviceterritoire'
+        VITE_API_TRESORIER = '/servicetresorier'
+        VITE_API_OFFRE_COMMUNE = '/serviceoffrecommune'
+        VITE_API_PROJET = '/serviceprojet'
+        VITE_API_SUGGESTION = '/servicesuggestion'
+        VITE_API_COOPERATIVE = '/servicecooperative'
+        VITE_API_UPLOAD = '/serviceupload'
+        VITE_API_NOTIFICATION = '/servicenotification'
+        VITE_API_PAIEMENT = '/servicepaiement'
+        VITE_API_FORUM = '/serviceforum'
+        VITE_API_THEME = '/servicetheme'
+        VITE_PORT = "4004"
+        NODE_PORT = "30040"
+        K8S_DIR = "k8s"
+    }
+
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building the Docker image...'
+                    sh """
+                        docker build \\
+                            --build-arg VITE_API_TIMEOUT=${VITE_API_TIMEOUT} \\
+                            --build-arg VITE_API_AUTH=${VITE_API_AUTH} \\
+                            --build-arg VITE_API_PUBLICATION=${VITE_API_PUBLICATION} \\
+                            --build-arg VITE_API_CITOYEN=${VITE_API_CITOYEN} \\
+                            --build-arg VITE_API_SIGNAL=${VITE_API_SIGNAL} \\
+                            --build-arg VITE_API_ENTREPRISE=${VITE_API_ENTREPRISE} \\
+                            --build-arg VITE_API_RECETTE=${VITE_API_RECETTE} \\
+                            --build-arg VITE_API_TERRITOIRE=${VITE_API_TERRITOIRE} \\
+                            --build-arg VITE_API_TRESORIER=${VITE_API_TRESORIER} \\
+                            --build-arg VITE_API_OFFRE_COMMUNE=${VITE_API_OFFRE_COMMUNE} \\
+                            --build-arg VITE_API_PROJET=${VITE_API_PROJET} \\
+                            --build-arg VITE_API_SUGGESTION=${VITE_API_SUGGESTION} \\
+                            --build-arg VITE_API_COOPERATIVE=${VITE_API_COOPERATIVE} \\
+                            --build-arg VITE_API_UPLOAD=${VITE_API_UPLOAD} \\
+                            --build-arg VITE_API_NOTIFICATION=${VITE_API_NOTIFICATION} \\
+                            --build-arg VITE_API_PAIEMENT=${VITE_API_PAIEMENT} \\
+                            --build-arg VITE_API_FORUM=${VITE_API_FORUM} \\
+                            --build-arg VITE_API_THEME=${VITE_API_THEME} \\
+                            -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                        docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${FULL_IMAGE_NAME}
+                    """
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'harbor-credentials', usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PASS')]) {
+                    script {
+                        echo 'Logging in to Harbor...'
+                        sh """
+                            echo "${HARBOR_PASS}" | docker login -u "${HARBOR_USER}" --password-stdin ${REGISTRY}
+                            docker push ${FULL_IMAGE_NAME}
+                            docker logout ${REGISTRY}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to K3s') {
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG')],
+                                [string(credentialsId: 'GATEWAY_URL_ID', variable: 'VITE_API_GATEWAY')]) {
+                    script {
+                        echo 'Injecting secret for VITE_API_GATEWAY...'
+                        sh """
+                            export KUBECONFIG=${KUBECONFIG}
+                            kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+                            kubectl delete secret agvm-gateway-secret -n ${NAMESPACE} --ignore-not-found
+                            kubectl create secret generic agvm-gateway-secret -n ${NAMESPACE} --from-literal=VITE_API_GATEWAY="${VITE_API_GATEWAY}"
+                        """
+                        echo 'Deploying to K3s cluster...'
+                        sh """
+                            export KUBECONFIG=${KUBECONFIG}
+                            kubectl apply -f ${K8S_DIR}/deployment.yaml
+                            kubectl apply -f ${K8S_DIR}/service.yaml
+                            kubectl apply -f ${K8S_DIR}/hpa.yaml
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo 'Cleaning workspace...'
+                cleanWs()
+            }
+        }
+    }
+}
