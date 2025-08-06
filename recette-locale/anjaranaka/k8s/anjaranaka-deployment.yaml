@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anjaranaka-deployment
+  namespace: pnud-agvm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: anjaranaka
+  template:
+    metadata:
+      labels:
+        app: anjaranaka
+    spec:
+      containers:
+      - name: anjaranaka
+        image: harbor.tsirylab.com/pnud-agvm/anjaranaka:latest
+        ports:
+        - containerPort: 4005
+        env:
+        - name: VITE_API_URL_SERVICERECETTE 
+          valueFrom:
+            secretKeyRef:
+              name: anjaranaka-apiurl-secret
+              key: VITE_API_URL_SERVICERECETTE
+        - name: VITE_API_URL_SERVICECITOYEN
+          valueFrom:
+            secretKeyRef:
+              name: anjaranaka-apiurl-secret
+              key: VITE_API_URL_SERVICECITOYEN
+        - name: VITE_API_URL_SERVICEAUTH
+          valueFrom:
+            secretKeyRef:
+              name: anjaranaka-apiurl-secret
+              key: VITE_API_URL_SERVICEAUTH
+        - name: VITE_PORT
+          value: "4005"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 4005
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4005
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      imagePullSecrets:
+      - name: harbor-registry-secret

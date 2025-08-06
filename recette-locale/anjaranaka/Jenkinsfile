@@ -2,19 +2,22 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "harbor.tsirylab.com"
-        HARBOR_PROJECT = "pnud-agvm"
-        IMAGE_NAME = "diamadio"
-        IMAGE_TAG = "latest"
+        REGISTRY = 'harbor.tsirylab.com'
+        HARBOR_PROJECT = 'pnud-agvm'
+        IMAGE_NAME = 'admin-agvm'
+        IMAGE_TAG = 'latest'
         FULL_IMAGE_NAME = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
-        DEPLOYMENT_NAME = "diamadio-deployment"
-        SERVICE_NAME = "diamadio-service"
-        HPA_NAME = "diamadio-hpa"
-        NAMESPACE = "pnud-agvm"
-        VITE_AUTH_TOKEN_KEY = ''
-        VITE_PORT = "4001"
-        NODE_PORT = "30042"
-        K8S_DIR = "k8s"
+        DEPLOYMENT_NAME = 'anjaranaka-deployment'
+        SERVICE_NAME = 'anjaranaka-service'
+        HPA_NAME = 'anjaranaka-hpa'
+        SERVICE_PORT = '4006'
+        NAMESPACE = 'pnud-agvm'
+        VITE_PORT = '4006'
+        K8S_DIR = 'k8s'
+        API_GATEWAY_URL = credentials('GATEWAY_URL_ID')
+        VITE_API_URL_SERVICERECETTE = "${API_GATEWAY_URL}/servicerecette"
+        VITE_API_URL_SERVICECITOYEN = "${API_GATEWAY_URL}/servicecitoyen"
+        VITE_API_URL_SERVICEAUTH = "${API_GATEWAY_URL}/serviceauth"
     }
 
     stages {
@@ -24,8 +27,9 @@ pipeline {
                     echo 'Building the Docker image...'
                     sh """
                         docker build \\
-                            --build-arg VITE_AUTH_TOKEN_KEY=${VITE_AUTH_TOKEN_KEY} \\
-                            --build-arg VITE_PORT=${VITE_PORT} \\
+                            --build-arg VITE_API_URL_SERVICERECETTE=${VITE_API_URL_SERVICERECETTE} \\
+                            --build-arg VITE_API_URL_SERVICECITOYEN=${VITE_API_URL_SERVICECITOYEN} \\
+                            --build-arg VITE_API_URL_SERVICEAUTH=${VITE_API_URL_SERVICEAUTH} \\
                             -t ${IMAGE_NAME}:${IMAGE_TAG} .
                         docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${FULL_IMAGE_NAME}
                     """
@@ -50,19 +54,21 @@ pipeline {
 
         stage('Deploy to K3s') {
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG')],
-                                [string(credentialsId: 'GATEWAY_URL_ID', variable: 'VITE_API_URL')]) {
+                withCredentials([
+                    file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
+                    string(credentialsId: 'GATEWAY_URL_ID', variable: 'VITE_API_URL')
+                ]) {
                     script {
-                        echo 'Injecting secret for VITE_API_URL...'
                         sh """
                             export KUBECONFIG=${KUBECONFIG}
                             kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-                            kubectl delete secret agvm-gateway-secret -n ${NAMESPACE} --ignore-not-found
-                            kubectl create secret generic agvm-gateway-secret -n ${NAMESPACE} --from-literal=VITE_API_URL="${VITE_API_URL}"
-                        """
-                        echo 'Deploying to K3s cluster...'
-                        sh """
-                            export KUBECONFIG=${KUBECONFIG}
+                            # Création ou mise à jour du secret admin-agvm-apiurl-secret
+                            kubectl delete secret admin-agvm-apiurl-secret -n ${NAMESPACE} --ignore-not-found
+                            kubectl create secret generic admin-agvm-apiurl-secret -n ${NAMESPACE} \\
+                                --from-literal=VITE_API_URL_SERVICERECETTE="${VITE_API_URL_SERVICERECETTE}" \\
+                                --from-literal=VITE_API_URL_SERVICECITOYEN="${VITE_API_URL_SERVICECITOYEN}" \\
+                                --from-literal=VITE_API_URL_SERVICEAUTH="${VITE_API_URL_SERVICEAUTH}" \\
+                                --from-literal=VITE_API_URL="${VITE_API_URL}"
                             kubectl apply -f ${K8S_DIR}/${DEPLOYMENT_NAME}.yaml
                             kubectl apply -f ${K8S_DIR}/${SERVICE_NAME}.yaml
                             kubectl apply -f ${K8S_DIR}/${HPA_NAME}.yaml
