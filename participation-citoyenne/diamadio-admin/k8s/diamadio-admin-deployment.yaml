@@ -1,31 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: diamadio-deployment
+  name: diamadio-admin-deployment
   namespace: pnud-agvm
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: diamadio
+      app: diamadio-admin
   template:
     metadata:
       labels:
-        app: diamadio
+        app: diamadio-admin
     spec:
       containers:
-      - name: diamadio
-        image: harbor.tsirylab.com/pnud-agvm/diamadio:latest
+      - name: diamadio-admin
+        image: harbor.tsirylab.com/pnud-agvm/diamadio-admin:latest
         ports:
-        - containerPort: 4004
+        - containerPort: 4002
         env:
-        - name: VITE_API_URL
+        - name: REACT_APP_API_BASE_URL
           valueFrom:
             secretKeyRef:
               name: agvm-gateway-secret
-              key: VITE_API_URL
-        - name: VITE_AUTH_TOKEN_KEY
-          value: "100000"
+              key: REACT_APP_API_BASE_URL
         resources:
           requests:
             cpu: "100m"
@@ -36,13 +34,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /
-            port: 4001
+            port: 4002
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /
-            port: 4001
+            port: 4002
           initialDelaySeconds: 5
           periodSeconds: 5
       imagePullSecrets:

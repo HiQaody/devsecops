@@ -2,17 +2,19 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "harbor.tsirylab.com"
-        HARBOR_PROJECT = "pnud-agvm"
-        IMAGE_NAME = "diamadio"
-        IMAGE_TAG = "latest"
+        REGISTRY = 'harbor.tsirylab.com'
+        HARBOR_PROJECT = 'pnud-agvm'
+        IMAGE_NAME = 'diamadio-admin'
+        IMAGE_TAG = 'latest'
         FULL_IMAGE_NAME = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
-        DEPLOYMENT_NAME = "diamadio-deployment"
-        NAMESPACE = "pnud-agvm"
+        DEPLOYMENT_NAME = 'diamadio-admin-deployment'
+        SERVICE_NAME = 'diamadio-admin-service'
+        HPA_NAME = 'diamadio-admin-hpa'
+        NAMESPACE = 'pnud-agvm'
         VITE_AUTH_TOKEN_KEY = '100000'
-        VITE_PORT = "4004"
-        NODE_PORT = "30042"
-        K8S_DIR = "k8s"
+        VITE_PORT = '4002'
+        NODE_PORT = '30043'
+        K8S_DIR = 'k8s'
     }
 
     stages {
@@ -61,12 +63,12 @@ pipeline {
                         echo 'Deploying to K3s cluster...'
                         sh """
                             export KUBECONFIG=${KUBECONFIG}
-                            kubectl apply -f ${K8S_DIR}/deployment.yaml
-                            kubectl apply -f ${K8S_DIR}/service.yaml
-                            kubectl apply -f ${K8S_DIR}/hpa.yaml
+                            kubectl apply -f ${K8S_DIR}/${DEPLOYMENT_NAME}.yaml
+                            kubectl apply -f ${K8S_DIR}/${SERVICE_NAME}.yaml
+                            kubectl apply -f ${K8S_DIR}/${HPA_NAME}.yaml
                         """
                     }
-                }
+                                }
             }
         }
     }

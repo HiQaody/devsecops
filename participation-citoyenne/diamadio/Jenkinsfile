@@ -8,9 +8,11 @@ pipeline {
         IMAGE_TAG = "latest"
         FULL_IMAGE_NAME = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
         DEPLOYMENT_NAME = "diamadio-deployment"
+        SERVICE_NAME = "diamadio-service"
+        HPA_NAME = "diamadio-hpa"
         NAMESPACE = "pnud-agvm"
         VITE_AUTH_TOKEN_KEY = '100000'
-        VITE_PORT = "4004"
+        VITE_PORT = "4001"
         NODE_PORT = "30042"
         K8S_DIR = "k8s"
     }
@@ -61,9 +63,9 @@ pipeline {
                         echo 'Deploying to K3s cluster...'
                         sh """
                             export KUBECONFIG=${KUBECONFIG}
-                            kubectl apply -f ${K8S_DIR}/deployment.yaml
-                            kubectl apply -f ${K8S_DIR}/service.yaml
-                            kubectl apply -f ${K8S_DIR}/hpa.yaml
+                            kubectl apply -f ${K8S_DIR}/${DEPLOYMENT_NAME}.yaml
+                            kubectl apply -f ${K8S_DIR}/${SERVICE_NAME}.yaml
+                            kubectl apply -f ${K8S_DIR}/${HPA_NAME}.yaml
                         """
                     }
                 }

@@ -17,7 +17,7 @@ spec:
       - name: diamadio
         image: harbor.tsirylab.com/pnud-agvm/diamadio:latest
         ports:
-        - containerPort: 4004
+        - containerPort: 4001
         env:
         - name: VITE_API_URL
           valueFrom:
