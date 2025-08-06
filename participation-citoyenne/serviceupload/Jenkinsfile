@@ -8,6 +8,9 @@ pipeline {
         IMAGE_TAG        = "latest"
         FULL_IMAGE_NAME  = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
         DEPLOYMENT_NAME  = "serviceupload-deployment"
+        SERVICE_NAME     = "serviceupload-service"
+        HPA_NAME         = "serviceupload-hpa"
+        SECRET_NAME     = "serviceupload-secret"
         NAMESPACE        = "pnud-agvm"
         PORT             = "5012"
         MINIO_BUCKET     = "diamadio"
@@ -69,15 +72,15 @@ pipeline {
                             export KUBECONFIG=${KUBECONFIG}
                             kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
                             # Création/mise à jour du secret
-                            kubectl delete secret serviceupload-secret -n ${NAMESPACE} --ignore-not-found
-                            kubectl create secret generic serviceupload-secret -n ${NAMESPACE} \\
+                            kubectl delete secret ${SECRET_NAME} -n ${NAMESPACE} --ignore-not-found
+                            kubectl create secret generic ${SECRET_NAME} -n ${NAMESPACE} \\
                                 --from-literal=MINIO_END_POINT="${MINIO_END_POINT}" \\
                                 --from-literal=MINIO_PORT="${MINIO_PORT}" \\
                                 --from-literal=MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY}" \\
                                 --from-literal=MINIO_SECRET_KEY="${MINIO_SECRET_KEY}"
-                            kubectl apply -f ${K8S_DIR}/serviceupload-deployment.yaml
-                            kubectl apply -f ${K8S_DIR}/serviceupload-service.yaml
-                            kubectl apply -f ${K8S_DIR}/serviceupload-hpa.yaml
+                            kubectl apply -f ${K8S_DIR}/${DEPLOYMENT_NAME}.yaml
+                            kubectl apply -f ${K8S_DIR}/${SERVICE_NAME}.yaml
+                            kubectl apply -f ${K8S_DIR}/${HPA_NAME}.yaml
                         """
                     }
                 }
