@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: serviceauth-service
+  namespace: pnud-agvm
+spec:
+  selector:
+    app: serviceauth
+  ports:
+    - protocol: TCP
+      port: 8046
+      targetPort: 8046
+      nodePort: 30526
+  type: NodePort

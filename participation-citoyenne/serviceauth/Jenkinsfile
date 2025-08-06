@@ -1,0 +1,119 @@
+pipeline {
+    agent any
+    environment {
+        REGISTRY = 'harbor.tsirylab.com'
+        HARBOR_PROJECT = 'pnud-agvm'
+        IMAGE_NAME = 'serviceauth'
+        IMAGE_TAG = 'latest'
+        FULL_IMAGE_NAME = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
+        DEPLOYMENT_NAME = 'serviceauth-deployment'
+        SERVICE_NAME = 'serviceauth-service'
+        NAMESPACE = 'pnud-agvm'
+        PORT = '8046'
+        POSTGRES_DB = 'serviceauth'
+        K8S_DIR = 'k8s'
+        JWT_SECRET = 'nestjsbackend'
+        JWT_EXPIRES = '1h'
+        CORS_ORIGIN = '*'
+    }
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'POSTGRES_HOST_ID', variable: 'POSTGRES_HOST'),
+                    string(credentialsId: 'POSTGRES_PORT_ID', variable: 'POSTGRES_PORT'),
+                    string(credentialsId: 'POSTGRES_USER_ID', variable: 'POSTGRES_USER'),
+                    string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'POSTGRES_PASSWORD'),
+                    string(credentialsId: 'GATEWAY_URL_ID', variable: 'API_GATEWAY_URL')
+                ]) {
+                    script {
+                        echo 'Building the Docker image with environment variables...'
+                        sh """
+                            docker build \\
+                                --build-arg POSTGRES_HOST=${POSTGRES_HOST} \\
+                                --build-arg POSTGRES_PORT=${POSTGRES_PORT} \\
+                                --build-arg POSTGRES_USER=${POSTGRES_USER} \\
+                                --build-arg POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \\
+                                --build-arg POSTGRES_DB=${POSTGRES_DB} \\
+                                --build-arg API_GATEWAY_URL=${API_GATEWAY_URL} \\
+                                --build-arg PORT=${PORT} \\
+                                -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                            docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${FULL_IMAGE_NAME}
+                        """
+                    }
+                }
+            }
+        }
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'harbor-credentials', usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PASS')]) {
+                    script {
+                        echo 'Logging in to Harbor...'
+                        sh """
+                            echo "${HARBOR_PASS}" | docker login -u "${HARBOR_USER}" --password-stdin ${REGISTRY}
+                            docker push ${FULL_IMAGE_NAME}
+                            docker logout ${REGISTRY}
+                        """
+                    }
+                }
+            }
+        }
+        stage('Deploy to K3s') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
+                    string(credentialsId: 'POSTGRES_HOST_ID', variable: 'POSTGRES_HOST'),
+                    string(credentialsId: 'POSTGRES_PORT_ID', variable: 'POSTGRES_PORT'),
+                    string(credentialsId: 'POSTGRES_USER_ID', variable: 'POSTGRES_USER'),
+                    string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'POSTGRES_PASSWORD'),
+                    string(credentialsId: 'GATEWAY_URL_ID', variable: 'API_GATEWAY_URL'),
+                    string(credentialsId: 'REDIS_HOST_ID', variable: 'REDIS_HOST'),
+                    string(credentialsId: 'REDIS_PORT_ID', variable: 'REDIS_PORT'),
+                    string(credentialsId: 'REDIS_PASSWORD_ID', variable: 'REDIS_PASSWORD'),
+                    usernamePassword(credentialsId: 'harbor-credentials', usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PASS')
+                ]) {
+                    script {
+                        sh """
+                            export KUBECONFIG=${KUBECONFIG}
+                            kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+
+                            # Création du secret pour le registre Harbor
+                            kubectl create secret docker-registry harbor-registry-secret -n ${NAMESPACE} \
+                                --docker-server=${REGISTRY} \
+                                --docker-username=${HARBOR_USER} \
+                                --docker-password=${HARBOR_PASS} \
+                                --dry-run=client -o yaml | kubectl apply -f -
+
+                            # Création/mise à jour du secret applicatif
+                            kubectl delete secret serviceauth-secret -n ${NAMESPACE} --ignore-not-found
+                            kubectl create secret generic serviceauth-secret -n ${NAMESPACE} \\
+                                --from-literal=POSTGRES_HOST="${POSTGRES_HOST}" \\
+                                --from-literal=POSTGRES_PORT="${POSTGRES_PORT}" \\
+                                --from-literal=POSTGRES_USER="${POSTGRES_USER}" \\
+                                --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \\
+                                --from-literal=API_GATEWAY_URL="${API_GATEWAY_URL}" \\
+                                --from-literal=SERVICE_CITIZEN_URL="${API_GATEWAY_URL}/servicecitoyen/citizens" \\
+                                --from-literal=JWT_SECRET="${JWT_SECRET}" \\
+                                --from-literal=JWT_EXPIRES="${JWT_EXPIRES}" \\
+                                --from-literal=REDIS_HOST="${REDIS_HOST}" \\
+                                --from-literal=REDIS_PORT="${REDIS_PORT}" \\
+                                --from-literal=REDIS_PASSWORD="${REDIS_PASSWORD}"
+
+                            # Application des manifests
+                            kubectl apply -f ${K8S_DIR}/${DEPLOYMENT_NAME}.yaml
+                            kubectl apply -f ${K8S_DIR}/${SERVICE_NAME}.yaml
+                        """
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                echo 'Cleaning workspace...'
+                cleanWs()
+            }
+        }
+    }
+}
