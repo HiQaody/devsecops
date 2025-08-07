@@ -1,0 +1,62 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'agvm-client'
+        IMAGE_TAG = 'latest'
+        CONTAINER_NAME = 'agvm-client-container'
+        VITE_API_URL = credentials('GATEWAY_URL_ID')
+        VITE_PORT = '4004'
+    }
+
+    stages {
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building the Docker image with environment variables...'
+                    sh """
+                    docker build \
+                        --build-arg VITE_API_URL=${VITE_API_URL} \
+                        --build-arg VITE_PORT=${VITE_PORT} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    """
+                }
+            }
+        }
+
+
+        stage('Deploy Containers') {
+            steps {
+                script {
+                    echo 'Checking if the container is already running...'
+                    sh '''
+                    if [ "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
+                        echo "Stopping and removing existing container..."
+                        docker stop ${CONTAINER_NAME}
+                        docker rm ${CONTAINER_NAME}
+                    fi
+                    '''
+
+                    echo 'Running the Docker container with environment variables...'
+                    sh '''
+                    docker run -d --name ${CONTAINER_NAME} \
+                        -e VITE_API_URL=${VITE_API_URL} \
+                        -e VITE_PORT=${VITE_PORT} \
+                        -p ${VITE_PORT}:${VITE_PORT} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo 'Cleaning workspace...'
+                cleanWs()
+            }
+        }
+    }
+}
