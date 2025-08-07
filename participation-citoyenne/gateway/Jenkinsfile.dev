@@ -10,9 +10,9 @@ pipeline {
         TIMEOUT_MS = '30000'
         PROXY_TIMEOUT_MS = '30000'
         K8S_NAMESPACE = 'pnud-agvm'
-        DEPLOYMENT_FILE = 'k8s-dev/apigateway-deployment.yaml'
-        CONFIGMAP_FILE = 'k8s-dev/apigateway-configmap.yaml'
-        SERVICE_FILE = 'k8s-dev/apigateway-service.yaml'
+        DEPLOYMENT_FILE = 'k8s-dev/apigateway-dev-deployment.yaml'
+        CONFIGMAP_FILE = 'k8s-dev/apigateway-dev-configmap.yaml'
+        SERVICE_FILE = 'k8s-dev/apigateway-dev-service.yaml'
     }
 
     stages {
@@ -24,7 +24,7 @@ pipeline {
                             --build-arg PORT=${PORT} \\
                             --build-arg TIMEOUT_MS=${TIMEOUT_MS} \\
                             --build-arg PROXY_TIMEOUT_MS=${PROXY_TIMEOUT_MS} \\
-                            -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                            -t ${IMAGE_NAME}:${IMAGE_TAG}  -f Dockerfile.dev .
                     """
                 }
             }
