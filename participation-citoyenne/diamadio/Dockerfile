@@ -21,11 +21,15 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
-# Définir les variables d'environnement
-ARG VITE_API_URL=
+ARG VITE_API_TIMEOUT
+ARG VITE_API_URL
+ARG VITE_PORT
+ARG VITE_AUTH_TOKEN_KEY
 
-
-ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_API_TIMEOUT=$VITE_API_TIMEOUT
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_PORT=$VITE_PORT
+ENV VITE_AUTH_TOKEN_KEY=$VITE_AUTH_TOKEN_KEY
 
 ENV NODE_ENV production
 ENV PORT 4001

@@ -2,72 +2,76 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = 'harbor.tsirylab.com'
-        HARBOR_PROJECT = 'pnud-agvm'
-        IMAGE_NAME = 'diamadio'
-        IMAGE_TAG = 'latest'
+        REGISTRY        = 'harbor.tsirylab.com'
+        HARBOR_PROJECT  = 'pnud-agvm'
+        IMAGE_NAME      = 'diamadio'
+        IMAGE_TAG       = "${env.BUILD_NUMBER}"                 // tag unique
+        NAMESPACE       = 'pnud-agvm'
         FULL_IMAGE_NAME = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
+        K8S_DIR         = 'k8s'
         DEPLOYMENT_NAME = 'diamadio-deployment'
-        SERVICE_NAME = 'diamadio-service'
-        HPA_NAME = 'diamadio-hpa'
-        NAMESPACE = 'pnud-agvm'
+        SERVICE_NAME    = 'diamadio-service'
+        HPA_NAME        = 'diamadio-hpa'
+
         VITE_API_TIMEOUT = '100000'
-        VITE_PORT = '4001'
-        NODE_PORT = '30042'
-        K8S_DIR = 'k8s'
+        VITE_PORT        = '4001'
     }
 
     stages {
         stage('Build Docker Image') {
             steps {
                 script {
-                    echo 'Building the Docker image...'
-                    sh """
-                        docker build \\
-                            --build-arg VITE_API_TIMEOUT=${VITE_API_TIMEOUT} \\
-                            -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                        docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${FULL_IMAGE_NAME}
-                    """
-                }
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'harbor-credentials', usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PASS')]) {
-                    script {
-                        echo 'Logging in to Harbor...'
+                    withCredentials([
+                        string(credentialsId: 'GATEWAY_URL_ID', variable: 'VITE_API_URL')
+                    ]) {
                         sh """
-                            echo "${HARBOR_PASS}" | docker login -u "${HARBOR_USER}" --password-stdin ${REGISTRY}
-                            docker push ${FULL_IMAGE_NAME}
-                            docker logout ${REGISTRY}
+                            docker build \
+                              --build-arg VITE_API_TIMEOUT=${VITE_API_TIMEOUT} \
+                              --build-arg VITE_API_URL=${VITE_API_URL} \
+                              --build-arg VITE_PORT=${VITE_PORT} \
+                              -t ${FULL_IMAGE_NAME} .
                         """
                     }
                 }
             }
         }
 
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([
+                    usernamePassword(credentialsId: 'harbor-credentials',
+                                     usernameVariable: 'HARBOR_USER',
+                                     passwordVariable: 'HARBOR_PASS')
+                ]) {
+                    sh '''
+                        echo "$HARBOR_PASS" | \
+                          docker login -u "$HARBOR_USER" --password-stdin $REGISTRY
+                        docker push $FULL_IMAGE_NAME
+                        docker logout $REGISTRY
+                    '''
+                }
+            }
+        }
+
         stage('Deploy to K3s') {
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG')]) {
-                    withCredentials([string(credentialsId: 'GATEWAY_URL_ID', variable: 'VITE_API_URL')]) {
-                        script {
-                            echo 'Injecting secret for VITE_API_URL...'
-                            sh """
+                withCredentials([file(credentialsId: 'kubeconfig-jenkins',
+                                    variable: 'KUBECONFIG')]) {
+                    sh '''
                         export KUBECONFIG=${KUBECONFIG}
+                        export IMAGE_TAG=${IMAGE_TAG}
+
+                        # Namespace
                         kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-                        kubectl delete secret diamadio-gateway-secret -n ${NAMESPACE} --ignore-not-found
-                        kubectl create secret generic diamadio-gateway-secret -n ${NAMESPACE} --from-literal=VITE_API_URL="${VITE_API_URL}"
-                    """
-                            echo 'Deploying to K3s cluster...'
-                            sh """
-                        export KUBECONFIG=${KUBECONFIG}
-                        kubectl apply -f ${K8S_DIR}/${DEPLOYMENT_NAME}.yaml
-                        kubectl apply -f ${K8S_DIR}/${SERVICE_NAME}.yaml
-                        kubectl apply -f ${K8S_DIR}/${HPA_NAME}.yaml
-                    """
-                        }
-                    }
+
+                        # Appliquer les manifests
+                        for f in ${K8S_DIR}/*.yaml; do
+                            envsubst < "$f" | kubectl apply -f -
+                        done
+
+                        # Attendre la fin du rollout
+                        kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=300s
+                    '''
                 }
             }
         }
@@ -75,10 +79,7 @@ pipeline {
 
     post {
         always {
-            script {
-                echo 'Cleaning workspace...'
-                cleanWs()
-            }
+            cleanWs()
         }
     }
 }

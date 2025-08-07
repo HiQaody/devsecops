@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: diamadio
-        image: harbor.tsirylab.com/pnud-agvm/diamadio:latest
+        image: harbor.tsirylab.com/pnud-agvm/diamadio:${IMAGE_TAG}
         ports:
         - containerPort: 4001
         env:
@@ -25,7 +25,7 @@ spec:
               name: agvm-gateway-secret
               key: VITE_API_URL
         - name: VITE_AUTH_TOKEN_KEY
-          value: "100000"
+          value: "${VITE_AUTH_TOKEN_KEY}"
         resources:
           requests:
             cpu: "100m"
