@@ -1,0 +1,36 @@
+# Utiliser une image Node.js officielle comme base
+FROM node:22-slim
+
+# Installer les dépendances système pour `wait-for-it`
+RUN apt-get update && apt-get install -y wait-for-it && rm -rf /var/lib/apt/lists/*
+
+# Définir le répertoire de travail
+WORKDIR /app
+
+# Déclarer les arguments de build
+ARG PORT=5010
+ARG TIMEOUT_MS=30000
+ARG PROXY_TIMEOUT_MS=30000
+ARG CORS_ORIGIN=""
+
+# Définir les variables d'environnement à partir des arguments de build
+ENV NODE_ENV=production \
+    PORT=${PORT} \
+    TIMEOUT_MS=${TIMEOUT_MS} \
+    PROXY_TIMEOUT_MS=${PROXY_TIMEOUT_MS} \
+    CORS_ORIGIN=${CORS_ORIGIN}
+
+# Copier les fichiers de configuration des dépendances
+COPY package*.json ./
+
+# Installer les dépendances uniquement
+RUN npm install --production
+
+# Copier tous les fichiers
+COPY . .
+
+# Exposer le port (utilisation de la variable d'environnement)
+EXPOSE ${PORT}
+
+# Lancer l'application
+CMD ["node", "server.js"]

@@ -19,47 +19,13 @@ spec:
         ports:
         - containerPort: 4004
         env:
-        - name: VITE_API_GATEWAY
+        - name: VITE_API_URL
           valueFrom:
             secretKeyRef:
               name: agvm-gateway-secret
-              key: VITE_API_GATEWAY
+              key: VITE_API_URL
         - name: VITE_API_TIMEOUT
           value: "100000"
-        - name: VITE_API_AUTH
-          value: "/serviceauth"
-        - name: VITE_API_PUBLICATION
-          value: "/servicepublication"
-        - name: VITE_API_CITOYEN
-          value: "/servicecitoyen"
-        - name: VITE_API_SIGNAL
-          value: "/servicesignal"
-        - name: VITE_API_ENTREPRISE
-          value: "/serviceentreprise"
-        - name: VITE_API_RECETTE
-          value: "/servicerecette"
-        - name: VITE_API_TERRITOIRE
-          value: "/serviceterritoire"
-        - name: VITE_API_TRESORIER
-          value: "/servicetresorier"
-        - name: VITE_API_OFFRE_COMMUNE
-          value: "/serviceoffrecommune"
-        - name: VITE_API_PROJET
-          value: "/serviceprojet"
-        - name: VITE_API_SUGGESTION
-          value: "/servicesuggestion"
-        - name: VITE_API_COOPERATIVE
-          value: "/servicecooperative"
-        - name: VITE_API_UPLOAD
-          value: "/serviceupload"
-        - name: VITE_API_NOTIFICATION
-          value: "/servicenotification"
-        - name: VITE_API_PAIEMENT
-          value: "/servicepaiement"
-        - name: VITE_API_FORUM
-          value: "/serviceforum"
-        - name: VITE_API_THEME
-          value: "/servicetheme"
         resources:
           requests:
             cpu: "100m"

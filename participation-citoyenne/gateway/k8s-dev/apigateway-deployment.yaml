@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apigateway-deployment
+  namespace: pnud-agvm
+  labels:
+    app: apigateway-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apigateway
+  template:
+    metadata:
+      labels:
+        app: apigateway
+    spec:
+      containers:
+      - name: apigateway
+        image: hiqaody367/apigateway-image-dev:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5010
+        env:
+        - name: PORT
+          value: "5010"
+        - name: TIMEOUT_MS
+          value: "30000"
+        - name: PROXY_TIMEOUT_MS
+          value: "30000"
+        - name: CORS_ORIGIN
+          valueFrom:
+            configMapKeyRef:
+              name: apigateway-config
+              key: CORS_ORIGIN
