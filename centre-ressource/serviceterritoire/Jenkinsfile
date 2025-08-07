@@ -2,16 +2,16 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "harbor.tsirylab.com"
-        HARBOR_PROJECT = "pnud-agvm"
-        IMAGE_NAME = "territoryservice"
-        IMAGE_TAG = "latest"
+        REGISTRY = 'harbor.tsirylab.com'
+        HARBOR_PROJECT = 'pnud-agvm'
+        IMAGE_NAME = 'territoryservice'
+        IMAGE_TAG = 'latest'
         FULL_IMAGE_NAME = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
-        DEPLOYMENT_NAME = "territoryservice-deployment"
-        NAMESPACE = "pnud-agvm"
-        PORT = "5005"
-        POSTGRES_DB = "territoryservice"
-        K8S_DIR = "k8s"
+        DEPLOYMENT_NAME = 'territoryservice-deployment'
+        NAMESPACE = 'pnud-agvm'
+        PORT = '5005'
+        POSTGRES_DB = 'territoryservice'
+        K8S_DIR = 'k8s'
     }
 
     stages {
@@ -61,31 +61,41 @@ pipeline {
         stage('Deploy to K3s') {
             steps {
                 withCredentials([
-                    file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
-                    string(credentialsId: 'POSTGRES_HOST_ID', variable: 'POSTGRES_HOST'),
-                    string(credentialsId: 'POSTGRES_PORT_ID', variable: 'POSTGRES_PORT'),
-                    string(credentialsId: 'POSTGRES_USER_ID', variable: 'POSTGRES_USER'),
-                    string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'POSTGRES_PASSWORD'),
-                    string(credentialsId: 'GATEWAY_URL_ID', variable: 'API_GATEWAY_URL')
-                ]) {
+            file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
+            string(credentialsId: 'POSTGRES_HOST_ID', variable: 'POSTGRES_HOST'),
+            string(credentialsId: 'POSTGRES_PORT_ID', variable: 'POSTGRES_PORT'),
+            string(credentialsId: 'POSTGRES_USER_ID', variable: 'POSTGRES_USER'),
+            string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'POSTGRES_PASSWORD'),
+            string(credentialsId: 'GATEWAY_URL_ID', variable: 'API_GATEWAY_URL')
+        ]) {
                     script {
+                        def timestamp = new Date().getTime()
+
                         sh """
-                            export KUBECONFIG=${KUBECONFIG}
-                            kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-                            # Création/mise à jour du secret
-                            kubectl delete secret territoryservice-secret -n ${NAMESPACE} --ignore-not-found
-                            kubectl create secret generic territoryservice-secret -n ${NAMESPACE} \\
-                                --from-literal=POSTGRES_HOST="${POSTGRES_HOST}" \\
-                                --from-literal=POSTGRES_PORT="${POSTGRES_PORT}" \\
-                                --from-literal=POSTGRES_USER="${POSTGRES_USER}" \\
-                                --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \\
-                                --from-literal=API_GATEWAY_URL="${API_GATEWAY_URL}" \\
-                                --from-literal=IMAGE_URL="${API_GATEWAY_URL}/serviceupload"
-                            kubectl apply -f ${K8S_DIR}/territoryservice-deployment.yaml
-                            kubectl apply -f ${K8S_DIR}/territoryservice-service.yaml
-                        """
+                    export KUBECONFIG=${KUBECONFIG}
+
+                    kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+
+                    # Création/mise à jour du secret
+                    kubectl delete secret territoryservice-secret -n ${NAMESPACE} --ignore-not-found
+                    kubectl create secret generic territoryservice-secret -n ${NAMESPACE} \\
+                        --from-literal=POSTGRES_HOST="${POSTGRES_HOST}" \\
+                        --from-literal=POSTGRES_PORT="${POSTGRES_PORT}" \\
+                        --from-literal=POSTGRES_USER="${POSTGRES_USER}" \\
+                        --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \\
+                        --from-literal=API_GATEWAY_URL="${API_GATEWAY_URL}" \\
+                        --from-literal=IMAGE_URL="${API_GATEWAY_URL}/serviceupload"
+
+                    # Appliquer les fichiers YAML
+                    kubectl apply -f ${K8S_DIR}/territoryservice-deployment.yaml
+                    kubectl apply -f ${K8S_DIR}/territoryservice-service.yaml
+
+                    # Forcer le redémarrage des pods en patchant l'annotation
+                    kubectl patch deployment ${DEPLOYMENT_NAME} -n ${NAMESPACE} \\
+                        -p '{"spec":{"template":{"metadata":{"annotations":{"ci-build-timestamp":"${timestamp}"}}}}}'
+                """
                     }
-                }
+        }
             }
         }
     }
