@@ -1,0 +1,86 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'backend-hymne'
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        CONTAINER_NAME = 'backend-hymne-container'
+        DB_USER = credentials('POSTGRES_USER_ID')
+        DB_PASSWORD = credentials('POSTGRES_PASSWORD_ID')
+        DB_HOST = credentials('POSTGRES_HOST_ID')
+        DB_SSL=false
+        JWT_SECRET = 'secret_emit'
+        END_DATE = '2025-10-01T23:59:59Z'
+        DB_NAME = 'hymne'
+        DB_PORT = credentials('POSTGRES_PORT_ID')
+        CLIENT_URL = 'https://hymne.emit.mg,https://api-chant.emit.mg'
+        PORT = '5000'
+    }
+
+    stages {
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building the Docker image with environment variables...'
+                    sh """
+                    docker build \
+                        --build-arg DB_USER=${DB_USER} \
+                        --build-arg DB_PASSWORD=${DB_PASSWORD} \
+                        --build-arg DB_HOST=${DB_HOST} \
+                        --build-arg DB_SSL=${DB_SSL} \
+                        --build-arg DB_NAME=${DB_NAME} \
+                        --build-arg DB_PORT=${DB_PORT} \
+                        --build-arg JWT_SECRET=${JWT_SECRET} \
+                        --build-arg END_DATE=${END_DATE} \
+                        --build-arg PORT=${PORT} \
+                        --build-arg CLIENT_URL=${CLIENT_URL} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    """
+                }
+            }
+        }
+
+
+        stage('Deploy Containers') {
+            steps {
+                script {
+                    echo 'Checking if the container is already running...'
+                    sh """
+                    if [ "\$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
+                        echo "Stopping and removing existing container..."
+                        docker stop ${CONTAINER_NAME}
+                        docker rm ${CONTAINER_NAME}
+                    fi
+                    """
+
+                    echo 'Running the Docker container with environment variables...'
+                    sh """
+                    docker run -d --name ${CONTAINER_NAME} \
+                        -e DB_USER=${DB_USER} \
+                        -e DB_PASSWORD=${DB_PASSWORD} \
+                        -e DB_HOST=${DB_HOST} \
+                        -e DB_SSL=${DB_SSL} \
+                        -e DB_NAME=${DB_NAME} \
+                        -e DB_PORT=${DB_PORT} \
+                        -e JWT_SECRET=${JWT_SECRET} \
+                        -e END_DATE=${END_DATE} \
+                        -e PORT=${PORT} \
+                        -e CLIENT_URL=${CLIENT_URL} \
+                        -p ${PORT}:${PORT} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo 'Cleaning workspace...'
+                cleanWs()
+            }
+        }
+    }
+}
