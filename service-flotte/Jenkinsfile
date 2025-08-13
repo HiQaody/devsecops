@@ -1,0 +1,78 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'serviceflotte-image'
+        IMAGE_TAG = 'latest'
+        CONTAINER_NAME = 'serviceflotte-container'
+
+        PORT = '5021'
+        GATEWAY_BASE_URL = credentials('GATEWAY_URL_ID')
+        GATEWAY_TIMEOUT_MS = '120000'
+        DB_HOST = credentials('POSTGRES_HOST_ID')
+        DB_PORT = credentials('POSTGRES_PORT_ID')
+        DB_USER = credentials('POSTGRES_USER_ID')
+        DB_PASSWORD = credentials('POSTGRES_PASSWORD_ID')
+        DB_NAME = 'serviceflotte'
+    }
+
+    stages {
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building the Docker image with environment variables...'
+                    sh """
+                    docker build \
+                        --build-arg PORT=${PORT} \
+                        --build-arg GATEWAY_BASE_URL=${GATEWAY_BASE_URL} \
+                        --build-arg GATEWAY_TIMEOUT_MS=${GATEWAY_TIMEOUT_MS} \
+                        --build-arg DB_HOST=${DB_HOST} \
+                        --build-arg DB_PORT=${DB_PORT} \
+                        --build-arg DB_USER=${DB_USER} \
+                        --build-arg DB_PASSWORD=${DB_PASSWORD} \
+                        --build-arg DB_NAME=${DB_NAME} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    """
+                }
+            }
+        }
+
+        stage('Deploy Containers') {
+            steps {
+                script {
+                    echo 'Checking if the container is already running...'
+                    sh '''
+                    if [ "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
+                        echo "Stopping and removing existing container..."
+                        docker stop ${CONTAINER_NAME}
+                        docker rm ${CONTAINER_NAME}
+                    fi
+                    '''
+
+                    echo 'Running the Docker container with environment variables...'
+                    sh '''
+                    docker run -d --name ${CONTAINER_NAME} \
+                        -p ${PORT}:${PORT} \
+                        -e PORT=${PORT} \
+                        -e DB_HOST=${DB_HOST} \
+                        -e DB_PORT=${DB_PORT} \
+                        -e DB_USER=${DB_USER} \
+                        -e DB_PASSWORD=${DB_PASSWORD} \
+                        -e DB_NAME=${DB_NAME} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo 'Cleaning workspace...'
+                cleanWs()
+            }
+        }
+    }
+}

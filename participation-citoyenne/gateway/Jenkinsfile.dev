@@ -2,80 +2,56 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'hiqaody367'
-        IMAGE_NAME = 'apigateway-image-dev'
-        IMAGE_TAG = 'latest'
-        FULL_IMAGE = "${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
-        PORT = '5010'
+        IMAGE_NAME = 'gateway-dev'
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        CONTAINER_NAME = 'gateway-dev-container'
         TIMEOUT_MS = '30000'
         PROXY_TIMEOUT_MS = '30000'
-        K8S_NAMESPACE = 'pnud-agvm'
-        DEPLOYMENT_FILE = 'k8s-dev/apigateway-dev-deployment.yaml'
-        CONFIGMAP_FILE = 'k8s-dev/apigateway-dev-configmap.yaml'
-        SERVICE_FILE = 'k8s-dev/apigateway-dev-service.yaml'
+        CORS_ORIGIN = 'https://gateway.tsirylab.com,https://diamadio.tsirylab.com,https://diamadio-admin.tsirylab.com,https://anjaranaka.tsirylab.com,https://mobilite-urbaine.tsirylab.com,https://criv.tsirylab.com,https://criv-admin.tsirylab.com,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:4002,http://localhost:4001,http://localhost:4000,http://localhost:3005'
+        PORT = '5010'
     }
 
     stages {
+
         stage('Build Docker Image') {
             steps {
                 script {
+                    echo 'Building the Docker image with environment variables...'
                     sh """
-                        docker build \\
-                            --build-arg PORT=${PORT} \\
-                            --build-arg TIMEOUT_MS=${TIMEOUT_MS} \\
-                            --build-arg PROXY_TIMEOUT_MS=${PROXY_TIMEOUT_MS} \\
-                            -t ${IMAGE_NAME}:${IMAGE_TAG}  -f Dockerfile.dev .
+                    docker build \
+                        --build-arg TIMEOUT_MS=${TIMEOUT_MS} \
+                        --build-arg PROXY_TIMEOUT_MS=${PROXY_TIMEOUT_MS} \
+                        --build-arg CORS_ORIGIN=${CORS_ORIGIN} \
+                        --build-arg PORT=${PORT} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
                     """
                 }
             }
         }
 
-        stage('Tag & Push to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-                    script {
-                        sh """
-                            docker login -u ${DOCKERHUB_USER} -p ${DOCKERHUB_PASS}
-                            docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${FULL_IMAGE}
-                            docker push ${FULL_IMAGE}
-                        """
-                        writeFile file: 'k8s/image.txt', text: FULL_IMAGE
-                    }
-                }
-            }
-        }
 
-        stage('Update & Apply ConfigMap') {
+        stage('Deploy Containers') {
             steps {
                 script {
-                    def cors = 'https://gateway.tsirylab.com,https://diamadio.tsirylab.com,https://diamadio-admin.tsirylab.com,https://anjaranaka.tsirylab.com,https://mobilite-urbaine.tsirylab.com,https://criv.tsirylab.com,https://criv-admin.tsirylab.com,http://localhost:3000,http://localhost:3003,http://localhost:5173,http://localhost:4002,http://localhost:4001,http://localhost:4000,http://localhost:3005'
-                    writeFile file: CONFIGMAP_FILE, text: """apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: apigateway-config
-  namespace: ${K8S_NAMESPACE}
-data:
-  CORS_ORIGIN: "${cors}"
-"""
-                }
-                withCredentials([file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG')]) {
-                    sh "kubectl apply -f ${CONFIGMAP_FILE} --kubeconfig=${KUBECONFIG}"
-                }
-            }
-        }
+                    echo 'Checking if the container is already running...'
+                    sh """
+                    if [ "\$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
+                        echo "Stopping and removing existing container..."
+                        docker stop ${CONTAINER_NAME}
+                        docker rm ${CONTAINER_NAME}
+                    fi
+                    """
 
-        stage('Deploy to Kubernetes') {
-            steps {
-                withCredentials([file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG')]) {
-                    script {
-                        def IMAGE = readFile('k8s/image.txt').trim()
-                        // Remplacement dynamique dans le manifest
-                        sh """
-                            sed -i 's|image:.*|image: ${IMAGE}|' ${DEPLOYMENT_FILE}
-                            kubectl apply -f ${DEPLOYMENT_FILE} --kubeconfig=${KUBECONFIG} -n ${K8S_NAMESPACE}
-                            kubectl apply -f ${SERVICE_FILE} --kubeconfig=${KUBECONFIG} -n ${K8S_NAMESPACE}
-                        """
-                    }
+                    echo 'Running the Docker container with environment variables...'
+                    sh """
+                    docker run -d --name ${CONTAINER_NAME} \
+                        -e TIMEOUT_MS=${TIMEOUT_MS} \
+                        -e PROXY_TIMEOUT_MS=${PROXY_TIMEOUT_MS} \
+                        -e CORS_ORIGIN=${CORS_ORIGIN} \
+                        -e PORT=${PORT} \
+                        -p ${PORT}:${PORT} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                    """
                 }
             }
         }
@@ -83,7 +59,10 @@ data:
 
     post {
         always {
-            cleanWs()
+            script {
+                echo 'Cleaning workspace...'
+                cleanWs()
+            }
         }
     }
 }
