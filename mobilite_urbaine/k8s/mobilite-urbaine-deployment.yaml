@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mobilite-urbaine-client-deployment
-  namespace: pnud-agvm
+  namespace: ${NAMESPACE}
 spec:
   replicas: 1
   selector:
@@ -15,14 +15,14 @@ spec:
     spec:
       containers:
       - name: mobilite-urbaine-client
-        image: harbor.tsirylab.com/pnud-agvm/mobilite-urbaine-client:${IMAGE_TAG}
+        image: ${FULL_IMAGE_NAME}
         ports:
-        - containerPort: 4007
+        - containerPort: ${VITE_PORT}
         env:
         - name: VITE_API_BASE_URL
           valueFrom:
             secretKeyRef:
-              name: agvm-gateway-secret
+              name: mobilite-urbaine-client-secret
               key: VITE_API_BASE_URL
         resources:
           requests:
@@ -34,13 +34,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /
-            port: 4007
+            port: ${VITE_PORT}
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /
-            port: 4007
+            port: ${VITE_PORT}
           initialDelaySeconds: 5
           periodSeconds: 5
       imagePullSecrets:

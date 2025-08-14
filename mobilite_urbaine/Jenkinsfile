@@ -2,76 +2,78 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY        = 'harbor.tsirylab.com'
-        HARBOR_PROJECT  = 'pnud-agvm'
-        IMAGE_NAME      = 'mobilite-urbaine-client'
-        IMAGE_TAG       = "${env.BUILD_NUMBER}"                 // tag unique
-        NAMESPACE       = 'pnud-agvm'
+        REGISTRY = 'harbor.tsirylab.com'
+        HARBOR_PROJECT = 'pnud-agvm'
+        IMAGE_NAME = 'mobilite-urbaine-client'
+        IMAGE_TAG = "${BUILD_NUMBER}"
         FULL_IMAGE_NAME = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
-        K8S_DIR         = 'k8s'
         DEPLOYMENT_NAME = 'mobilite-urbaine-client-deployment'
-        SERVICE_NAME    = 'mobilite-urbaine-service'
-        HPA_NAME        = 'mobilite-urbaine-hpa'
-
-        VITE_PORT        = '4007'
+        SERVICE_NAME = 'mobilite-urbaine-service'
+        HPA_NAME = 'mobilite-urbaine-hpa'
+        NAMESPACE = 'pnud-agvm'
+        VITE_API_BASE_URL = credentials('GATEWAY_URL_ID')
+        VITE_PORT = '4007'
+        NODE_PORT = '30044'
+        K8S_DIR = 'k8s'
     }
 
     stages {
         stage('Build Docker Image') {
             steps {
                 script {
-                    withCredentials([
-                        string(credentialsId: 'GATEWAY_URL_ID', variable: 'VITE_API_BASE_URL')
-                    ]) {
-                        sh """
-                            docker build \
-                              --build-arg VITE_API_BASE_URL=${VITE_API_BASE_URL} \
-                              --build-arg VITE_PORT=${VITE_PORT} \
-                              -t ${FULL_IMAGE_NAME} .
-                        """
-                    }
+                    echo 'Building the Docker image...'
+                    sh """
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${FULL_IMAGE_NAME}
+                    """
                 }
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                withCredentials([
-                    usernamePassword(credentialsId: 'harbor-credentials',
-                                     usernameVariable: 'HARBOR_USER',
-                                     passwordVariable: 'HARBOR_PASS')
-                ]) {
-                    sh '''
-                        echo "$HARBOR_PASS" | \
-                          docker login -u "$HARBOR_USER" --password-stdin $REGISTRY
-                        docker push $FULL_IMAGE_NAME
-                        docker logout $REGISTRY
-                    '''
+                withCredentials([usernamePassword(credentialsId: 'harbor-credentials', usernameVariable: 'HARBOR_USER', passwordVariable: 'HARBOR_PASS')]) {
+                    script {
+                        echo 'Logging in to Harbor...'
+                        sh """
+                        echo "${HARBOR_PASS}" | docker login -u "${HARBOR_USER}" --password-stdin ${REGISTRY}
+                        docker push ${FULL_IMAGE_NAME}
+                        docker logout ${REGISTRY}
+                        """
+                    }
                 }
             }
         }
 
         stage('Deploy to K3s') {
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig-jenkins',
-                                    variable: 'KUBECONFIG'),
-                                 string(credentialsId: 'GATEWAY_URL_ID', variable: 'VITE_API_BASE_URL')]) {
-                    sh '''
+                withCredentials([file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG')]) {
+                    script {
+                        echo 'Deploying to K3s cluster...'
+                        sh """
                         export KUBECONFIG=${KUBECONFIG}
-                        export IMAGE_TAG=${IMAGE_TAG}
+                        export FULL_IMAGE_NAME=${FULL_IMAGE_NAME}
+                        export DEPLOYMENT_NAME=${DEPLOYMENT_NAME}
+                        export SERVICE_NAME=${SERVICE_NAME}
+                        export HPA_NAME=${HPA_NAME}
+                        export NAMESPACE=${NAMESPACE}
                         export VITE_API_BASE_URL=${VITE_API_BASE_URL}
+                        export VITE_PORT=${VITE_PORT}
+                        export NODE_PORT=${NODE_PORT}
+                        export K8S_DIR=${K8S_DIR}
 
-                        # Namespace
+                        //assigner la secret dans mobilite-urbaine-client-secret
+                        kubectl create secret generic mobilite-urbaine-client-secret \
+                        --from-literal=VITE_API_BASE_URL=${VITE_API_BASE_URL} \
+                        --from-literal=VITE_PORT=${VITE_PORT} \
+                        --from-literal=FULL_IMAGE_NAME=${FULL_IMAGE_NAME}
+
                         kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-
-                        # Appliquer les manifests
-                        for f in ${K8S_DIR}/*.yaml; do
-                            envsubst < "$f" | kubectl apply -f -
-                        done
-
-                        # Attendre la fin du rollout
-                        kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=300s
-                    '''
+                        kubectl apply -f ${K8S_DIR}/${DEPLOYMENT_NAME}.yaml
+                        kubectl apply -f ${K8S_DIR}/${SERVICE_NAME}.yaml
+                        kubectl apply -f ${K8S_DIR}/${HPA_NAME}.yaml
+                        """
+                    }
                 }
             }
         }
@@ -79,7 +81,10 @@ pipeline {
 
     post {
         always {
-            cleanWs()
+            script {
+                echo 'Cleaning workspace...'
+                cleanWs()
+            }
         }
     }
 }
