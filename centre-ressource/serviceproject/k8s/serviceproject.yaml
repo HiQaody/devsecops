@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: serviceproject
+  namespace: ${NAMESPACE}
+  labels:
+    app: serviceproject
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: serviceproject
+  template:
+    metadata:
+      labels:
+        app: serviceproject
+    spec:
+      containers:
+        - name: serviceproject
+          image: ${FULL_IMAGE_NAME}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5019
+              name: http
+          envFrom:
+            - secretRef:
+                name: serviceproject-secret
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /serviceprojet
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /serviceprojet
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      imagePullSecrets:
+        - name: harbor-registry-secret
