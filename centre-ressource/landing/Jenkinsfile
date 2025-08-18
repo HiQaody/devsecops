@@ -5,9 +5,12 @@ pipeline {
         REGISTRY = 'harbor.tsirylab.com'
         HARBOR_PROJECT = 'pnud-agvm'
         IMAGE_NAME = 'agvm-client'
-        IMAGE_TAG = 'latest'
+        IMAGE_TAG = "${BUILD_NUMBER}"
         FULL_IMAGE_NAME = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
         DEPLOYMENT_NAME = 'agvm-client-deployment'
+        SERVICE_NAME = 'agvm-client-service'
+        HPA_NAME = 'agvm-client-hpa'
+        PORT = '4004'
         NAMESPACE = 'pnud-agvm'
         VITE_API_TIMEOUT = '100000'
         VITE_PORT = '4004'
@@ -47,19 +50,38 @@ pipeline {
 
         stage('Deploy to K3s') {
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG')]) {
-                    withCredentials([string(credentialsId: 'GATEWAY_URL_ID', variable: 'VITE_API_URL')]) {
-                        script {
-                            echo 'Injecting secret for VITE_API_URL...'
-                            sh """
+                withCredentials([file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
+                string(credentialsId: 'GATEWAY_URL_ID', variable: 'VITE_API_URL'),]) {
+                    script {
+                        echo 'Injecting secret for VITE_API_URL...'
+                        sh """
                         export KUBECONFIG=${KUBECONFIG}
+                        export VITE_API_URL=${VITE_API_URL}
+                        export VITE_PORT=${VITE_PORT}
+
+                        echo "=== Création du namespace ==="
                         kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-                        kubectl delete secret agvm-gateway-secret -n ${NAMESPACE} --ignore-not-found
-                        kubectl create secret generic agvm-gateway-secret -n ${NAMESPACE} --from-literal=VITE_API_URL="${VITE_API_URL}"
+
+                        echo "=== Création du secret ==="
+                        kubectl delete secret agvm-gateway-secret -n ${NAMESPACE} --ignore-not-found=true
+                        kubectl create secret generic criv-secret \
+                        --from-literal=VITE_API_URL="${VITE_API_URL}" \
+                        --from-literal=VITE_PORT="${VITE_PORT}" \
+                        --namespace=${NAMESPACE}
                     """
-                            echo 'Deploying to K3s cluster...'
-                            sh """
+                        echo 'Deploying to K3s cluster...'
+                        sh """
                         export KUBECONFIG=${KUBECONFIG}
+                        export VITE_API_URL=${VITE_API_URL}
+                        export VITE_PORT=${VITE_PORT}
+                        export FULL_IMAGE_NAME=${FULL_IMAGE_NAME}
+                        export DEPLOYMENT_NAME=${DEPLOYMENT_NAME}
+                        export SERVICE_NAME=${SERVICE_NAME}
+                        export HPA_NAME=${HPA_NAME}
+                        export PORT=${PORT}
+                        export NAMESPACE=${NAMESPACE}
+
+                        echo "=== Application des manifestes Kubernetes ==="
                         kubectl apply -f ${K8S_DIR}/deployment.yaml
                         kubectl apply -f ${K8S_DIR}/service.yaml
                         kubectl apply -f ${K8S_DIR}/hpa.yaml

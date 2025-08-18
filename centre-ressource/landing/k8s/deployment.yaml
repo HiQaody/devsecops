@@ -15,17 +15,14 @@ spec:
     spec:
       containers:
       - name: agvm-client
-        image: harbor.tsirylab.com/pnud-agvm/agvm-client:latest
+        image: ${FULL_IMAGE_NAME}
+        imagePullPolicy: Always
         ports:
-        - containerPort: 4004
-        env:
-        - name: VITE_API_URL
-          valueFrom:
-            secretKeyRef:
-              name: agvm-gateway-secret
-              key: VITE_API_URL
-        - name: VITE_API_TIMEOUT
-          value: "100000"
+          - containerPort: 4004
+            name: http
+        envFrom:
+          - secretRef:
+              name: criv-secret
         resources:
           requests:
             cpu: "100m"
@@ -36,13 +33,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /
-            port: 4004
+            port: http
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /
-            port: 4004
+            port: http
           initialDelaySeconds: 5
           periodSeconds: 5
       imagePullSecrets:

@@ -94,7 +94,7 @@ pipeline {
                             echo "=== Création du secret applicatif ==="
                             kubectl delete secret serviceproject-secret -n ${NAMESPACE} --ignore-not-found=true
                             kubectl create secret generic serviceproject-secret \
-                              --from-literal=IMAGE_URL="${API_GATEWAY_URL}/serviceupload" \
+                              --from    -literal=IMAGE_URL="${API_GATEWAY_URL}/serviceupload" \
                               --from-literal=POSTGRES_HOST="${POSTGRES_HOST}" \
                               --from-literal=POSTGRES_PORT="${POSTGRES_PORT}" \
                               --from-literal=POSTGRES_USER="${POSTGRES_USER}" \
