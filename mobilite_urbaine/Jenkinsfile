@@ -62,7 +62,6 @@ pipeline {
                         export NODE_PORT=${NODE_PORT}
                         export K8S_DIR=${K8S_DIR}
 
-                        //assigner la secret dans mobilite-urbaine-client-secret
                         kubectl create secret generic mobilite-urbaine-client-secret \
                         --from-literal=VITE_API_BASE_URL=${VITE_API_BASE_URL} \
                         --from-literal=VITE_PORT=${VITE_PORT} \
