@@ -4,16 +4,16 @@ pipeline {
     environment {
         REGISTRY         = 'harbor.tsirylab.com'
         HARBOR_PROJECT   = 'pnud-agvm'
-        IMAGE_NAME       = 'serviceproject'
+        IMAGE_NAME       = 'servicemonographies'
         IMAGE_TAG        = "${BUILD_NUMBER}"
         FULL_IMAGE_NAME  = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
         NAMESPACE        = 'pnud-agvm'
         K8S_DIR          = 'k8s'
-        DEPLOYMENT_NAME  = 'serviceproject'
-        SERVICE_NAME     = 'serviceproject-service'
-        HPA_NAME         = 'serviceproject-hpa'
-        PORT             = '5019'
-        POSTGRES_DB      = 'projetservice'
+        DEPLOYMENT_NAME  = 'servicemonographies'
+        SERVICE_NAME     = 'servicemonographies-service'
+        HPA_NAME         = 'servicemonographies-hpa'
+        PORT             = '5023'
+        POSTGRES_DB      = 'servicemonographies'
     }
 
     stages {
@@ -63,11 +63,11 @@ pipeline {
             steps {
                 withCredentials([
                     string(credentialsId: 'IP_SERVER_ID', variable: 'IP_SERVER'),
-                    string(credentialsId: 'POSTGRES_HOST_ID', variable: 'POSTGRES_HOST'),
-                    string(credentialsId: 'POSTGRES_PORT_ID', variable: 'POSTGRES_PORT'),
-                    string(credentialsId: 'POSTGRES_USER_ID', variable: 'POSTGRES_USER'),
-                    string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'POSTGRES_PASSWORD'),
-                    string(credentialsId: 'GATEWAY_URL_ID', variable: 'API_GATEWAY_URL'),
+                    string(credentialsId: 'POSTGRES_HOST_ID', variable: 'DB_HOST'),
+                    string(credentialsId: 'POSTGRES_PORT_ID', variable: 'DB_PORT'),
+                    string(credentialsId: 'POSTGRES_USER_ID', variable: 'DB_USERNAME'),
+                    string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'DB_PASSWORD'),
+                    string(credentialsId: 'GATEWAY_URL_ID', variable: 'BASE_URL'),
                     file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
                     usernamePassword(
                         credentialsId: 'harbor-credentials',
@@ -92,14 +92,14 @@ pipeline {
                               --namespace=${NAMESPACE}
 
                             echo "=== Création du secret applicatif ==="
-                            kubectl delete secret serviceproject-secret -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl create secret generic serviceproject-secret \
-                              --from    -literal=IMAGE_URL="${API_GATEWAY_URL}/serviceupload" \
-                              --from-literal=POSTGRES_HOST="${POSTGRES_HOST}" \
-                              --from-literal=POSTGRES_PORT="${POSTGRES_PORT}" \
-                              --from-literal=POSTGRES_USER="${POSTGRES_USER}" \
-                              --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
-                              --from-literal=POSTGRES_DB="${POSTGRES_DB}" \
+                            kubectl delete secret servicemonographies-secret -n ${NAMESPACE} --ignore-not-found=true
+                            kubectl create secret generic servicemonographies-secret \
+                              --from-literal=DB_HOST="${DB_HOST}" \
+                              --from-literal=DB_PORT="${DB_PORT}" \
+                              --from-literal=DB_USERNAME="${DB_USERNAME}" \
+                              --from-literal=DB_PASSWORD="${DB_PASSWORD}" \
+                              --from-literal=DB_DATABASE="${DB_DATABASE}" \
+                              --from-literal=BASE_URL="${BASE_URL}" \
                               --namespace=${NAMESPACE}
 
                             echo "=== Application des manifestes Kubernetes ==="
