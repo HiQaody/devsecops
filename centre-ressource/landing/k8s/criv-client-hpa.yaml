@@ -1,13 +1,13 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: agvm-client-hpa
+  name: criv-client-hpa
   namespace: pnud-agvm
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: agvm-client-deployment
+    name: criv-client
   minReplicas: 1
   maxReplicas: 5
   metrics:

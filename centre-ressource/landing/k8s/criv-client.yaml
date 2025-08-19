@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: agvm-client-deployment
+  name: criv-client
   namespace: pnud-agvm
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: agvm-client
+      app: criv-client
   template:
     metadata:
       labels:
-        app: agvm-client
+        app: criv-client
     spec:
       containers:
-      - name: agvm-client
+      - name: criv-client
         image: ${FULL_IMAGE_NAME}
         imagePullPolicy: Always
         ports:

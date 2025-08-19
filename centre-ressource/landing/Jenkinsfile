@@ -14,8 +14,6 @@ pipeline {
         HPA_NAME         = 'criv-client-hpa'
         SECRET_NAME      = 'criv-client-secret'
         PORT             = '4004'
-        MINIO_BUCKET     = 'pnud-agvm'
-        MINIO_SSL        = 'false'
     }
 
     stages {
