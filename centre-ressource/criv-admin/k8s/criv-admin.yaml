@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: criv-admin-deployment
+  name: criv-admin
   namespace: pnud-agvm
 spec:
   replicas: 1

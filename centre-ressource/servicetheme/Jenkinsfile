@@ -12,6 +12,7 @@ pipeline {
         DEPLOYMENT_NAME  = 'servicetheme'
         SERVICE_NAME     = 'servicetheme-service'
         HPA_NAME         = 'servicetheme-hpa'
+        SECRET_NAME      = 'servicetheme-secret'
         PORT             = '5017'
         POSTGRES_DB      = 'themeservice'
     }
@@ -92,8 +93,8 @@ pipeline {
                               --namespace=${NAMESPACE}
 
                             echo "=== Création du secret applicatif ==="
-                            kubectl delete secret territoryservice-secret -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl create secret generic territoryservice-secret \
+                            kubectl delete secret ${SECRET_NAME} -n ${NAMESPACE} --ignore-not-found=true
+                            kubectl create secret generic ${SECRET_NAME} \
                               --from-literal=IMAGE_URL="${API_GATEWAY_URL}/serviceupload" \
                               --from-literal=POSTGRES_HOST="${POSTGRES_HOST}" \
                               --from-literal=POSTGRES_PORT="${POSTGRES_PORT}" \
