@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicetsena
+  namespace: ${NAMESPACE}
+  labels:
+    app: servicetsena
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: servicetsena
+  template:
+    metadata:
+      labels:
+        app: servicetsena
+    spec:
+      containers:
+        - name: servicetsena
+          image: ${FULL_IMAGE_NAME}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5024
+              name: http
+          envFrom:
+            - secretRef:
+                name: servicetsena-secret
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /servicetsena
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /servicetsena
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      imagePullSecrets:
+        - name: harbor-registry-secret
