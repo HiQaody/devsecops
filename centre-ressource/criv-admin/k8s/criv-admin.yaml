@@ -1,31 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: admin-agvm-deployment
+  name: criv-admin-deployment
   namespace: pnud-agvm
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: admin-agvm
+      app: criv-admin
   template:
     metadata:
       labels:
-        app: admin-agvm
+        app: criv-admin
     spec:
       containers:
-      - name: admin-agvm
-        image: harbor.tsirylab.com/pnud-agvm/admin-agvm:latest
+      - name: criv-admin
+        image: ${FULL_IMAGE_NAME}
+        imagePullPolicy: Always
         ports:
-        - containerPort: 4006
-        env:
-        - name: VITE_API_URL
-          valueFrom:
-            secretKeyRef:
-              name: admin-agvm-apiurl-secret
-              key: VITE_API_URL
-        - name: VITE_PORT
-          value: "4006"
+          - containerPort: 4006
+            name: http
+        envFrom:
+          - secretRef:
+              name: criv-admin-secret
         resources:
           requests:
             cpu: "100m"
@@ -36,13 +33,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /
-            port: 4006
+            port: http
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /
-            port: 4006
+            port: http
           initialDelaySeconds: 5
           periodSeconds: 5
       imagePullSecrets:

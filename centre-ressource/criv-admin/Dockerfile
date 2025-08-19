@@ -1,5 +1,5 @@
 # Étape 1 : Construire l'application
-FROM node:22-slim AS builder
+FROM node:20-slim AS builder
 WORKDIR /app
 
 # Copier les fichiers nécessaires pour installer les dépendances
@@ -13,7 +13,7 @@ COPY . .
 RUN npm run build
 
 # Étape 2 : Image finale pour l'exécution
-FROM node:22-alpine AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 # Copier uniquement les fichiers nécessaires pour exécuter l'application
@@ -21,9 +21,11 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
-ARG VITE_API_URL=""
-ENV VITE_API_URL=${VITE_API_URL}
 # Définir les variables d'environnement
+ARG VITE_API_URL=
+
+ENV VITE_API_URL=${VITE_API_URL}
+
 ENV NODE_ENV production
 ENV PORT 4006
 
