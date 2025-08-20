@@ -22,7 +22,7 @@ spec:
             name: http
         envFrom:
           - secretRef:
-              name: diamadio-secret
+              name: diamadio-client-secret
         resources:
           requests:
             cpu: "100m"
