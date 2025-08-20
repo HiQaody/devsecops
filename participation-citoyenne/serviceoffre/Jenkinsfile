@@ -4,15 +4,16 @@ pipeline {
     environment {
         REGISTRY         = 'harbor.tsirylab.com'
         HARBOR_PROJECT   = 'pnud-agvm'
-        IMAGE_NAME       = 'serviceupload'
+        IMAGE_NAME       = 'serviceoffrecommune'
         IMAGE_TAG        = "${BUILD_NUMBER}"
         FULL_IMAGE_NAME  = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
         NAMESPACE        = 'pnud-agvm'
         K8S_DIR          = 'k8s'
-        DEPLOYMENT_NAME  = 'serviceupload'
-        SERVICE_NAME     = 'serviceupload-service'
-        HPA_NAME         = 'serviceupload-hpa'
-        PORT             = '5012'
+        DEPLOYMENT_NAME  = 'serviceoffrecommune'
+        SERVICE_NAME     = 'serviceoffrecommune-service'
+        HPA_NAME         = 'serviceoffrecommune-hpa'
+        PORT             = '5007'
+        DB_NAME      = 'serviceoffre'
     }
 
     stages {
@@ -62,11 +63,10 @@ pipeline {
             steps {
                 withCredentials([
                     string(credentialsId: 'IP_SERVER_ID', variable: 'IP_SERVER'),
-                    string(credentialsId: 'MINIO_END_POINT_ID', variable: 'MINIO_END_POINT'),
-                    string(credentialsId: 'MINIO_PORT_ID', variable: 'MINIO_PORT'),
-                    string(credentialsId: 'MINIO_ACCESS_KEY_ID', variable: 'MINIO_ACCESS_KEY'),
-                    string(credentialsId: 'MINIO_SECRET_KEY_ID', variable: 'MINIO_SECRET_KEY'),
-                    string(credentialsId: 'MINIO_BUCKET_ID', variable: 'MINIO_BUCKET'),
+                    string(credentialsId: 'POSTGRES_HOST_ID', variable: 'DB_HOST'),
+                    string(credentialsId: 'POSTGRES_PORT_ID', variable: 'DB_PORT'),
+                    string(credentialsId: 'POSTGRES_USER_ID', variable: 'DB_USER'),
+                    string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'DB_PASSWORD'),
                     file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
                     usernamePassword(
                         credentialsId: 'harbor-credentials',
@@ -91,14 +91,13 @@ pipeline {
                               --namespace=${NAMESPACE}
 
                             echo "=== Création du secret applicatif ==="
-                            kubectl delete secret serviceupload-secret -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl create secret generic serviceupload-secret \
-                              --from-literal=MINIO_END_POINT="${MINIO_END_POINT}" \
-                              --from-literal=MINIO_PORT="${MINIO_PORT}" \
-                              --from-literal=MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY}" \
-                              --from-literal=MINIO_SECRET_KEY="${MINIO_SECRET_KEY}" \
-                              --from-literal=MINIO_BUCKET="${MINIO_BUCKET}" \
-                              --from-literal=PORT="${PORT}" \
+                            kubectl delete secret serviceoffrecommune-secret -n ${NAMESPACE} --ignore-not-found=true
+                            kubectl create secret generic serviceoffrecommune-secret \
+                              --from-literal=DB_HOST="${DB_HOST}" \
+                              --from-literal=DB_PORT="${DB_PORT}" \
+                              --from-literal=DB_USER="${DB_USER}" \
+                              --from-literal=DB_PASSWORD="${DB_PASSWORD}" \
+                              --from-literal=DB_NAME="${DB_NAME}" \
                               --namespace=${NAMESPACE}
 
                             echo "=== Application des manifestes Kubernetes ==="
