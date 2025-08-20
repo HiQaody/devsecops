@@ -1,5 +1,5 @@
 # Étape 1 : Construire l'application
-FROM node:22-slim AS builder
+FROM node:20-slim AS builder
 WORKDIR /app
 
 # Copier les fichiers nécessaires pour installer les dépendances
@@ -9,36 +9,33 @@ RUN npm ci && npm cache clean --force
 # Copier le reste du code source
 COPY . .
 
-# Construire l'application Vite (React)
+# Définir la variable d'environnement build-time
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
+
+# Construire l'application Vite avec la variable injectée
 RUN npm run build
 
 # Étape 2 : Image finale pour l'exécution
-FROM node:22-alpine AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Copier uniquement les fichiers nécessaires pour exécuter l'application
+# Installer "serve" pour servir les fichiers statiques
+RUN npm install -g serve
+
+# Copier uniquement le build final
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
-ARG VITE_API_TIMEOUT
-ARG VITE_API_URL
-ARG VITE_PORT
-ARG VITE_AUTH_TOKEN_KEY
-
-ENV VITE_API_TIMEOUT=$VITE_API_TIMEOUT
-ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_PORT=$VITE_PORT
-ENV VITE_AUTH_TOKEN_KEY=$VITE_AUTH_TOKEN_KEY
-
+# Définir l'environnement runtime
 ENV NODE_ENV production
 ENV PORT 4001
 
 # Exposer le port
 EXPOSE 4001
 
-# Utiliser un utilisateur non-root par sécurité
+# Utiliser un utilisateur non-root
 USER node
 
 # Lancer l'application
-CMD ["npx", "serve", "-s", "dist", "-l", "4001"]
+CMD ["serve", "-s", "dist", "-l", "4001"]

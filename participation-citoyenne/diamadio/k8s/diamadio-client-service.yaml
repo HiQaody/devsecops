@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: diamadio-service
+  name: diamadio-client-service
   namespace: pnud-agvm
 spec:
   selector:
-    app: diamadio
+    app: diamadio-client
   ports:
     - protocol: TCP
       port: 4001

@@ -1,13 +1,13 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: diamadio-hpa
+  name: diamadio-client-hpa
   namespace: pnud-agvm
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: diamadio-deployment
+    name: diamadio-client
   minReplicas: 1
   maxReplicas: 5
   metrics:
