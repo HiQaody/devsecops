@@ -1,10 +1,11 @@
+
 # Étape 1 : Construire l'application
 FROM node:20-slim AS builder
 WORKDIR /app
 
 # Copier les fichiers nécessaires pour installer les dépendances
 COPY package.json package-lock.json ./
-RUN npm install && npm cache clean --force
+RUN npm install
 
 # Copier le reste du code source
 COPY . .
@@ -23,8 +24,12 @@ WORKDIR /app
 # Installer "serve" pour servir les fichiers statiques
 RUN npm install -g serve
 
-# Copier uniquement le build final
-COPY --from=builder /app/dist ./dist
+
+# Copier uniquement les fichiers nécessaires pour exécuter l'application
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/node_modules ./node_modules
+
+
 COPY --from=builder /app/package.json ./package.json
 
 # Définir l'environnement runtime
