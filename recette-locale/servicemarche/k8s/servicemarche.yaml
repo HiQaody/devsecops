@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicemarche
+  namespace: ${NAMESPACE}
+  labels:
+    app: servicemarche
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: servicemarche
+  template:
+    metadata:
+      labels:
+        app: servicemarche
+    spec:
+      containers:
+        - name: servicemarche
+          image: ${FULL_IMAGE_NAME}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5028
+              name: http
+          envFrom:
+            - secretRef:
+                name: servicemarche-secret
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /servicemarche
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /servicemarche
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      imagePullSecrets:
+        - name: harbor-registry-secret
