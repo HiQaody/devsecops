@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicediscution
+  namespace: ${NAMESPACE}
+  labels:
+    app: servicediscution
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: servicediscution
+  template:
+    metadata:
+      labels:
+        app: servicediscution
+    spec:
+      containers:
+        - name: servicediscution
+          image: ${FULL_IMAGE_NAME}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5025
+              name: websocket
+          envFrom:
+            - secretRef:
+                name: servicediscution-secret
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /servicediscution   # ⚠️ à implémenter côté app
+              port: websocket
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /servicediscution   # ⚠️ à implémenter côté app
+              port: websocket
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      imagePullSecrets:
+        - name: harbor-registry-secret
