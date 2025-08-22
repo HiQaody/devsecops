@@ -14,7 +14,7 @@ pipeline {
         HPA_NAME         = 'diamadio-admin-hpa'
         SECRET_NAME      = 'diamadio-admin-secret'
         PORT             = '4002'
-        VITE_API_URL     = credentials('GATEWAY_URL_ID')
+        REACT_APP_API_BASE_URL     = 'https://gateway.tsirylab.com'
     }
 
     stages {
@@ -32,7 +32,7 @@ pipeline {
                         docker logout ${REGISTRY} || true
 
                         docker build \
-                          --build-arg VITE_API_URL=${VITE_API_URL} \
+                          --build-arg REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL} \
                           --build-arg PORT=${PORT} \
                           -t ${FULL_IMAGE_NAME} .
 
@@ -65,7 +65,6 @@ pipeline {
             steps {
                 withCredentials([
                     string(credentialsId: 'IP_SERVER_ID', variable: 'IP_SERVER'),
-                    string(credentialsId: 'GATEWAY_URL_ID', variable: 'VITE_API_URL'),
                     file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
                     usernamePassword(
                         credentialsId: 'harbor-credentials',
@@ -92,8 +91,8 @@ pipeline {
                             echo "=== Création du secret applicatif ==="
                             kubectl delete secret ${SECRET_NAME} -n ${NAMESPACE} --ignore-not-found=true
                             kubectl create secret generic ${SECRET_NAME} \
-                              --from-literal=VITE_API_URL="${VITE_API_URL}" \
-                              --from-literal=VITE_PORT="${PORT}" \
+                              --from-literal=REACT_APP_API_BASE_URL="${REACT_APP_API_BASE_URL}" \
+                              --from-literal=PORT="${PORT}" \
                               --namespace=${NAMESPACE}
 
                             echo "=== Application des manifestes Kubernetes ==="

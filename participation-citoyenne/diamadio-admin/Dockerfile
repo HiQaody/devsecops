@@ -1,46 +1,37 @@
+# Use the official Node.js 20 image as the base image
+FROM node:20
 
-# Étape 1 : Construire l'application
-FROM node:20-slim AS builder
+# Set the working directory
 WORKDIR /app
 
-# Copier les fichiers nécessaires pour installer les dépendances
-COPY package.json package-lock.json ./
-RUN npm install
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
-# Copier le reste du code source
+# Install production dependencies only
+RUN npm install --production --legacy-peer-deps
+
+# Copy the rest of the application code
 COPY . .
 
-# Définir la variable d'environnement build-time
-ARG VITE_API_URL
-ENV VITE_API_URL=${VITE_API_URL}
+# ARG 
+ARG NODE_ENV=production
+ARG PORT=4002
+ARG REACT_APP_API_BASE_URL=http://localhost:4000
 
-# Construire l'application Vite avec la variable injectée
-RUN npm run build
+# Set environment variables
+ENV NODE_ENV=${NODE_ENV}
+ENV PORT=${PORT}
+ENV REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
 
-# Étape 2 : Image finale pour l'exécution
-FROM node:20-alpine AS runner
-WORKDIR /app
 
-# Installer "serve" pour servir les fichiers statiques
+# Install 'serve' globally to serve the built application
 RUN npm install -g serve
 
+# Build the application for production
+RUN npm run build
 
-# Copier uniquement les fichiers nécessaires pour exécuter l'application
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/node_modules ./node_modules
+# Expose the port specified in the .env file
+EXPOSE ${PORT}
 
-
-COPY --from=builder /app/package.json ./package.json
-
-# Définir l'environnement runtime
-ENV NODE_ENV production
-ENV PORT 4002
-
-# Exposer le port
-EXPOSE 4002
-
-# Utiliser un utilisateur non-root
-USER node
-
-# Lancer l'application
-CMD ["serve", "-s", "dist", "-l", "4002"]
+# Start the application using 'serve' to serve the build folder
+CMD ["serve", "-s", "build", "-l", "${PORT}"]
