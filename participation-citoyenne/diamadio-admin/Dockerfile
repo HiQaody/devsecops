@@ -1,37 +1,36 @@
-# Use the official Node.js 20 image as the base image
-FROM node:20
-
-# Set the working directory
+###########################################################################
+# ÉTAPE 1 – Build Vite
+###########################################################################
+FROM node:20-slim AS builder
 WORKDIR /app
 
-# Copy package.json and package-lock.json
 COPY package*.json ./
+RUN npm ci --ignore-scripts && npm cache clean --force
 
-# Install production dependencies only
-RUN npm install --production --legacy-peer-deps
-
-# Copy the rest of the application code
 COPY . .
 
-# ARG 
-ARG NODE_ENV=production
-ARG PORT=4002
-ARG REACT_APP_API_BASE_URL=http://localhost:4000
+ARG VITE_API_URL
+ARG VITE_APP_CLIENT_ID
+ARG VITE_PORT=4002
 
-# Set environment variables
-ENV NODE_ENV=${NODE_ENV}
-ENV PORT=${PORT}
-ENV REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_APP_CLIENT_ID=$VITE_APP_CLIENT_ID \
+    VITE_PORT=$VITE_PORT
 
-
-# Install 'serve' globally to serve the built application
-RUN npm install -g serve
-
-# Build the application for production
 RUN npm run build
 
-# Expose the port specified in the .env file
-EXPOSE ${PORT}
+###########################################################################
+# ÉTAPE 2 – Image Nginx (non-root)
+###########################################################################
+FROM nginxinc/nginx-unprivileged:1.25-alpine AS runner
+USER 101
+WORKDIR /usr/share/nginx/html
 
-# Start the application using 'serve' to serve the build folder
-CMD ["serve", "-s", "build", "-l", "${PORT}"]
+# On écrase simplement les fichiers par défaut
+COPY --from=builder --chown=101:101 /app/dist .
+
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV PORT=4002
+EXPOSE 4002
+
+CMD ["nginx","-g","daemon off;"]

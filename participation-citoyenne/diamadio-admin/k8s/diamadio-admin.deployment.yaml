@@ -18,11 +18,14 @@ spec:
         image: ${FULL_IMAGE_NAME}
         imagePullPolicy: Always
         ports:
-          - containerPort: 4002
-            name: http
+        - containerPort: 4002
+          name: http
+        env:
+        - name: PORT
+          value: "4002"
         envFrom:
-          - secretRef:
-              name: diamadio-admin-secret
+        - secretRef:
+            name: diamadio-admin-secret
         resources:
           requests:
             cpu: "100m"
@@ -31,14 +34,18 @@ spec:
             cpu: "500m"
             memory: "512Mi"
         livenessProbe:
-          tcpSocket:
-            port: http
+          httpGet:
+            path: /
+            port: 4002            # ou "http" si vous préférez le nom du port
           initialDelaySeconds: 30
           periodSeconds: 10
+          failureThreshold: 3
         readinessProbe:
-          tcpSocket:
-            port: http
+          httpGet:
+            path: /
+            port: 4002            # ou "http"
           initialDelaySeconds: 5
           periodSeconds: 5
+          failureThreshold: 3
       imagePullSecrets:
       - name: harbor-registry-secret

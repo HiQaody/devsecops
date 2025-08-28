@@ -13,27 +13,27 @@ pipeline {
         SERVICE_NAME     = 'diamadio-admin-service'
         HPA_NAME         = 'diamadio-admin-hpa'
         SECRET_NAME      = 'diamadio-admin-secret'
-        PORT             = '4002'
-        REACT_APP_API_BASE_URL     = 'https://gateway.tsirylab.com'
+        VITE_PORT             = '4002'
+        VITE_API_URL     = 'https://gateway.tsirylab.com'
+        VITE_APP_CLIENT_ID = 'participation-citoyenne-admin'
     }
 
     stages {
         stage('Build & Push') {
             steps {
                 withCredentials([
-                    usernamePassword(
-                        credentialsId: 'harbor-credentials',
-                        usernameVariable: 'HARBOR_USER',
-                        passwordVariable: 'HARBOR_PASS'
-                    )
+                    usernamePassword(credentialsId: 'harbor-credentials',
+                                     usernameVariable: 'HARBOR_USER',
+                                     passwordVariable: 'HARBOR_PASS')
                 ]) {
                     sh '''
                         set -e
                         docker logout ${REGISTRY} || true
 
                         docker build \
-                          --build-arg REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL} \
-                          --build-arg PORT=${PORT} \
+                          --build-arg VITE_API_URL=${VITE_API_URL} \
+                          --build-arg VITE_PORT=${VITE_PORT} \
+                          --build-arg VITE_APP_CLIENT_ID=${VITE_APP_CLIENT_ID} \
                           -t ${FULL_IMAGE_NAME} .
 
                         echo ${HARBOR_PASS} | \
@@ -46,108 +46,47 @@ pipeline {
             }
         }
 
-        stage('Test Cluster Access') {
+        stage('Deploy to K3s') {
             steps {
                 withCredentials([
-                    file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG')
+                    file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
+                    usernamePassword(credentialsId: 'harbor-credentials',
+                                     usernameVariable: 'HARBOR_USER',
+                                     passwordVariable: 'HARBOR_PASS')
                 ]) {
                     sh '''
                         set -e
                         export KUBECONFIG=${KUBECONFIG}
-                        kubectl get nodes
-                        kubectl get pods -n ${NAMESPACE} || true
+
+                        kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+
+                        kubectl delete secret harbor-registry-secret -n ${NAMESPACE} --ignore-not-found
+                        kubectl create secret docker-registry harbor-registry-secret \
+                          --docker-server=${REGISTRY} \
+                          --docker-username="${HARBOR_USER}" \
+                          --docker-password="${HARBOR_PASS}" \
+                          --namespace=${NAMESPACE}
+
+                        kubectl delete secret ${SECRET_NAME} -n ${NAMESPACE} --ignore-not-found
+                        kubectl create secret generic ${SECRET_NAME} \
+                          --from-literal=VITE_API_URL="${VITE_API_URL}" \
+                          --from-literal=VITE_APP_CLIENT_ID="${VITE_APP_CLIENT_ID}" \
+                          --from-literal=VITE_PORT="${VITE_PORT}" \
+                          --namespace=${NAMESPACE}
+
+                        # template toutes les ressources
+                        for res in deployment service hpa secret; do
+                            envsubst < ${K8S_DIR}/${DEPLOYMENT_NAME}.$res.yaml > /tmp/${DEPLOYMENT_NAME}.$res.yaml
+                            kubectl apply -f /tmp/${DEPLOYMENT_NAME}.$res.yaml
+                        done
+
+                        kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=600s
+                        kubectl get pods -n ${NAMESPACE} -l app=${DEPLOYMENT_NAME}
                     '''
                 }
             }
         }
-
-        stage('Deploy to K3s') {
-            steps {
-                withCredentials([
-                    string(credentialsId: 'IP_SERVER_ID', variable: 'IP_SERVER'),
-                    file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
-                    usernamePassword(
-                        credentialsId: 'harbor-credentials',
-                        usernameVariable: 'HARBOR_USER',
-                        passwordVariable: 'HARBOR_PASS'
-                    )
-                ]) {
-                    script {
-                        sh '''
-                            set -e
-                            export KUBECONFIG=${KUBECONFIG}
-
-                            echo "=== Création du namespace ==="
-                            kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-
-                            echo "=== Création du secret registry Harbor ==="
-                            kubectl delete secret harbor-registry-secret -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl create secret docker-registry harbor-registry-secret \
-                              --docker-server=${REGISTRY} \
-                              --docker-username="${HARBOR_USER}" \
-                              --docker-password="${HARBOR_PASS}" \
-                              --namespace=${NAMESPACE}
-
-                            echo "=== Création du secret applicatif ==="
-                            kubectl delete secret ${SECRET_NAME} -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl create secret generic ${SECRET_NAME} \
-                              --from-literal=REACT_APP_API_BASE_URL="${REACT_APP_API_BASE_URL}" \
-                              --from-literal=PORT="${PORT}" \
-                              --namespace=${NAMESPACE}
-
-                            echo "=== Application des manifestes Kubernetes ==="
-                            export FULL_IMAGE_NAME="${FULL_IMAGE_NAME}"
-                            export DEPLOYMENT_NAME="${DEPLOYMENT_NAME}"
-                            export SERVICE_NAME="${SERVICE_NAME}"
-                            export HPA_NAME="${HPA_NAME}"
-                            export PORT="${PORT}"
-                            export NAMESPACE="${NAMESPACE}"
-                            export SECRET_NAME="${SECRET_NAME}"
-
-                            echo "Application de ${DEPLOYMENT_NAME}.yaml"
-                            envsubst '${FULL_IMAGE_NAME} ${DEPLOYMENT_NAME} ${SERVICE_NAME} ${HPA_NAME} ${PORT} ${NAMESPACE}' \
-                              < ${K8S_DIR}/${DEPLOYMENT_NAME}.yaml > /tmp/${DEPLOYMENT_NAME}-processed.yaml
-                            kubectl apply -f /tmp/${DEPLOYMENT_NAME}-processed.yaml
-
-                            echo "Application de ${SERVICE_NAME}.yaml"
-                            envsubst '${FULL_IMAGE_NAME} ${DEPLOYMENT_NAME} ${SERVICE_NAME} ${HPA_NAME} ${PORT} ${NAMESPACE}' \
-                              < ${K8S_DIR}/${SERVICE_NAME}.yaml > /tmp/${SERVICE_NAME}-processed.yaml
-                            kubectl apply -f /tmp/${SERVICE_NAME}-processed.yaml
-
-                            echo "Application de ${HPA_NAME}.yaml"
-                            envsubst '${FULL_IMAGE_NAME} ${DEPLOYMENT_NAME} ${SERVICE_NAME} ${HPA_NAME} ${PORT} ${NAMESPACE}' \
-                              < ${K8S_DIR}/${HPA_NAME}.yaml > /tmp/${HPA_NAME}-processed.yaml
-                            kubectl apply -f /tmp/${HPA_NAME}-processed.yaml
-
-                            echo "=== Vérification du déploiement ==="
-                            kubectl rollout status deployment.apps/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=600s
-
-                            echo "=== Vérification de l'état des pods ==="
-                            if ! kubectl get pods -n ${NAMESPACE} -l app=${DEPLOYMENT_NAME} \
-                                -o jsonpath='{.items[*].status.phase}' | grep -q Running; then
-                                echo "❌ Les pods ne sont pas en état Running"
-                                kubectl describe pods -n ${NAMESPACE}
-                                exit 1
-                            fi
-
-                            echo "=== État des ressources ==="
-                            kubectl get pods -n ${NAMESPACE} -l app=${DEPLOYMENT_NAME}
-                            kubectl get services -n ${NAMESPACE}
-                            kubectl get hpa -n ${NAMESPACE}
-
-                            echo "=== Événements récents ==="
-                            kubectl get events -n ${NAMESPACE} --sort-by='.metadata.creationTimestamp' | tail -10
-                        '''
-                    }
-                }
-            }
-        }
     }
 
-    post {
-        always {
-            echo 'Cleaning workspace...'
-            cleanWs()
-        }
-    }
+    post { always { cleanWs() } }
 }
