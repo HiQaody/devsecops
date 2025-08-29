@@ -1,41 +1,40 @@
-# Étape 1 : Construire l'application
+###########################################################################
+# ÉTAPE 1 – Build Vite
+###########################################################################
 FROM node:20-slim AS builder
 WORKDIR /app
 
-# Copier les fichiers nécessaires pour installer les dépendances
-COPY package.json package-lock.json ./
-RUN npm ci && npm cache clean --force
+COPY package*.json ./
+RUN npm ci --ignore-scripts && npm cache clean --force
 
-# Copier le reste du code source
 COPY . .
 
-# Définir la variable d'environnement build-time
-ARG VITE_API_URL
-ENV VITE_API_URL=${VITE_API_URL}
+ARG VITE_API_URL_SERVICECITOYEN
+ARG VITE_API_URL_SERVICEAUTH
+ARG VITE_API_URL_SERVICEZONE
+ARG VITE_APP_CLIENT_ID
+ARG VITE_PORT=4005
 
-# Construire l'application Vite avec la variable injectée
+ENV VITE_API_URL_SERVICECITOYEN=$VITE_API_URL_SERVICECITOYEN \
+    VITE_API_URL_SERVICEAUTH=$VITE_API_URL_SERVICEAUTH \
+    VITE_API_URL_SERVICEZONE=$VITE_API_URL_SERVICEZONE \
+    VITE_APP_CLIENT_ID=$VITE_APP_CLIENT_ID \
+    VITE_PORT=$VITE_PORT
+
 RUN npm run build
 
-# Étape 2 : Image finale pour l'exécution
-FROM node:20-alpine AS runner
-WORKDIR /app
+###########################################################################
+# ÉTAPE 2 – Image Nginx (non-root)
+###########################################################################
+FROM nginxinc/nginx-unprivileged:1.25-alpine AS runner
+USER 101
+WORKDIR /usr/share/nginx/html
 
-# Installer "serve" pour servir les fichiers statiques
-RUN npm install -g serve
+# On écrase simplement les fichiers par défaut
+COPY --from=builder --chown=101:101 /app/dist .
 
-# Copier uniquement le build final
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./package.json
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV PORT=$VITE_PORT
+EXPOSE $VITE_PORT
 
-# Définir l'environnement runtime
-ENV NODE_ENV production
-ENV PORT 4005
-
-# Exposer le port
-EXPOSE 4005
-
-# Utiliser un utilisateur non-root
-USER node
-
-# Lancer l'application
-CMD ["serve", "-s", "dist", "-l", "4005"]
+CMD ["nginx","-g","daemon off;"]
