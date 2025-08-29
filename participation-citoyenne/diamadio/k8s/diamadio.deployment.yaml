@@ -1,28 +1,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: diamadio-client
+  name: diamadio
   namespace: pnud-agvm
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: diamadio-client
+      app: diamadio
   template:
     metadata:
       labels:
-        app: diamadio-client
+        app: diamadio
     spec:
       containers:
-      - name: diamadio-client
+      - name: diamadio
         image: ${FULL_IMAGE_NAME}
         imagePullPolicy: Always
         ports:
-          - containerPort: 4001
-            name: http
+        - containerPort: 4001
+          name: http
+        env:
+        - name: PORT
+          value: "4001"
         envFrom:
-          - secretRef:
-              name: diamadio-client-secret
+        - secretRef:
+            name: diamadio-secret
         resources:
           requests:
             cpu: "100m"
@@ -33,14 +36,16 @@ spec:
         livenessProbe:
           httpGet:
             path: /
-            port: http
+            port: 4001            # ou "http" si vous préférez le nom du port
           initialDelaySeconds: 30
           periodSeconds: 10
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /
-            port: http
+            port: 4001            # ou "http"
           initialDelaySeconds: 5
           periodSeconds: 5
+          failureThreshold: 3
       imagePullSecrets:
       - name: harbor-registry-secret
