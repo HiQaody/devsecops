@@ -1,0 +1,44 @@
+pipeline {
+    agent any
+
+    environment {
+        CONTAINER_NAME   = 'emit-dev-front'
+        IMAGE_NAME       = 'emit-dev-front'
+        IMAGE_TAG        = "${BUILD_NUMBER}"
+        VITE_PORT        = '4013'
+        VITE_API_URL     = 'https://api-site-dev.emit.mg'
+    }
+
+    stages {
+        stage('Build & Push') {
+            steps {
+                sh '''
+                        docker build \
+                          --build-arg VITE_API_URL=${VITE_API_URL} \
+                          --build-arg VITE_PORT=${VITE_PORT} \
+                          -t ${IMAGE_NAME}:${IMAGE_TAG} -f Dockerfile.dev .
+                    '''
+            }
+        }
+
+        stage('Deploy the container') {
+            steps {
+                    sh '''
+                        docker run -d \
+                            --name ${CONTAINER_NAME} \
+                            -p ${VITE_PORT}:${VITE_PORT} \
+                            --restart unless-stopped \
+                            -e VITE_API_URL=${VITE_API_URL} \
+                            -e VITE_PORT=${VITE_PORT} \
+                            ${IMAGE_NAME}:${IMAGE_TAG}
+                    '''
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
