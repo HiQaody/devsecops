@@ -8,7 +8,7 @@ pipeline {
         VITE_PORT        = '4003'
         VITE_API_URL     = 'https://api-site.emit.mg'
     }
-
+ 
     stages {
         stage('Build & Push') {
             steps {

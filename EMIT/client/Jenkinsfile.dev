@@ -13,33 +13,32 @@ pipeline {
         stage('Build & Push') {
             steps {
                 sh '''
-                        docker build \
-                          --build-arg VITE_API_URL=${VITE_API_URL} \
-                          --build-arg VITE_PORT=${VITE_PORT} \
-                          -t ${IMAGE_NAME}:${IMAGE_TAG} -f Dockerfile.dev .
-                    '''
+                    docker build \
+                      --build-arg VITE_API_URL=${VITE_API_URL} \
+                      --build-arg VITE_PORT=${VITE_PORT} \
+                      -t ${IMAGE_NAME}:${IMAGE_TAG} -f Dockerfile.dev .
+                '''
             }
         }
 
         stage('Deploy the container') {
             steps {
-                    sh '''
-                        echo 'verifying container'
-                        docker ps -a | grep ${CONTAINER_NAME} > /dev/null
-                        if [ $? -eq 0 ]; then
-                            docker stop ${CONTAINER_NAME}
-                            docker rm ${CONTAINER_NAME}
-                        fi
+                sh '''
+                    echo 'verifying container'
+                    if docker ps -a --format '{{.Names}}' | grep -w ${CONTAINER_NAME}; then
+                        docker stop ${CONTAINER_NAME}
+                        docker rm ${CONTAINER_NAME}
+                    fi
 
-                        echo 'running container'
-                        docker run -d \
-                            --name ${CONTAINER_NAME} \
-                            -p ${VITE_PORT}:${VITE_PORT} \
-                            --restart unless-stopped \
-                            -e VITE_API_URL=${VITE_API_URL} \
-                            -e VITE_PORT=${VITE_PORT} \
-                            ${IMAGE_NAME}:${IMAGE_TAG}
-                    '''
+                    echo 'running container'
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p ${VITE_PORT}:${VITE_PORT} \
+                        --restart unless-stopped \
+                        -e VITE_API_URL=${VITE_API_URL} \
+                        -e VITE_PORT=${VITE_PORT} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
             }
         }
     }

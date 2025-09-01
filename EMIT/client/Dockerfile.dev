@@ -1,34 +1,48 @@
 ###########################################################################
-# ÉTAPE 1 – Build Vite
+# ÉTAPE 1 – Build Vite (Frontend)
 ###########################################################################
 FROM node:20-slim AS builder
 WORKDIR /app
 
+# Installer dépendances
 COPY package*.json ./
 RUN npm ci --ignore-scripts && npm cache clean --force
 
+# Copier code
 COPY . .
 
+# Variables build-time (passées par Jenkins ou docker build --build-arg)
 ARG VITE_API_URL
 ARG VITE_PORT=4013
 
+# Exposer les variables au build
 ENV VITE_API_URL=$VITE_API_URL \
     VITE_PORT=$VITE_PORT
 
+# Build du frontend
 RUN npm run build
 
 ###########################################################################
-# ÉTAPE 2 – Image Nginx (non-root)
+# ÉTAPE 2 – Nginx (non-root, pour servir le build)
 ###########################################################################
 FROM nginxinc/nginx-unprivileged:1.25-alpine AS runner
-USER 101
 WORKDIR /usr/share/nginx/html
+USER 101
 
-# On écrase simplement les fichiers par défaut
+# Copier le build depuis builder
 COPY --from=builder --chown=101:101 /app/dist .
 
+# Copier config nginx customisée
 COPY nginx-dev.conf /etc/nginx/conf.d/default.conf
-ENV PORT=$VITE_PORT
-EXPOSE $VITE_PORT
 
+# Arguments runtime (au moment du docker build OU docker run)
+ARG VITE_PORT=4013
+
+# Exposer la variable au runtime
+ENV PORT=$VITE_PORT
+
+# Expose le port dynamiquement
+EXPOSE $PORT
+
+# Lancer Nginx
 CMD ["nginx","-g","daemon off;"]
