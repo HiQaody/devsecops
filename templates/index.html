@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Générateur de fichiers backend</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          animation: {
+            'slide-in': 'slideIn 0.6s ease-out',
+            'slide-in-row': 'slideInRow 0.3s ease-out',
+            'pulse-custom': 'pulseCustom 4s ease-in-out infinite',
+            'float': 'float 3s ease-in-out infinite',
+          },
+          keyframes: {
+            slideIn: {
+              '0%': { opacity: '0', transform: 'translateY(30px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' }
+            },
+            slideInRow: {
+              '0%': { opacity: '0', transform: 'translateX(-20px)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' }
+            },
+            pulseCustom: {
+              '0%, 100%': { transform: 'scale(1)', opacity: '0.5' },
+              '50%': { transform: 'scale(1.1)', opacity: '0.8' }
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-10px)' }
+            }
+          },
+          backdropBlur: {
+            'xs': '2px',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spinner {
+      animation: spin 1s linear infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-5 text-gray-800">
+  <div class="max-w-4xl mx-auto bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl overflow-hidden animate-slide-in">
+    <!-- Header -->
+    <div class="relative bg-gradient-to-br from-indigo-600 to-purple-700 text-white p-8 text-center overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-radial from-white/10 to-transparent opacity-50 animate-pulse-custom"></div>
+      <div class="relative z-10">
+        <h1 class="text-4xl font-bold mb-3 animate-float">🚀 Générateur Backend</h1>
+        <p class="text-lg opacity-90 mb-4">Créez vos fichiers Dockerfile, YAML et Jenkinsfile en quelques clics</p>
+        <div class="flex justify-center gap-2 flex-wrap">
+          <span class="bg-white/20 px-4 py-2 rounded-full text-sm backdrop-blur-sm">Docker</span>
+          <span class="bg-white/20 px-4 py-2 rounded-full text-sm backdrop-blur-sm">Kubernetes</span>
+          <span class="bg-white/20 px-4 py-2 rounded-full text-sm backdrop-blur-sm">Jenkins</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="p-10">
+      <form id="genForm" class="space-y-8">
+        <!-- Grid Layout for App Info -->
+        <div class="grid md:grid-cols-2 gap-6">
+          <div class="group">
+            <label class="block mb-3 font-semibold text-gray-700 text-sm flex items-center gap-2">
+              <span class="text-lg">📦</span>
+              Nom de l'application
+            </label>
+            <input 
+              type="text" 
+              name="app_name" 
+              class="w-full p-4 border-2 border-gray-200 rounded-xl text-base transition-all duration-300 bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white focus:shadow-lg focus:-translate-y-1 hover:-translate-y-0.5" 
+              placeholder="mon-app-backend" 
+              required
+            >
+          </div>
+          <div class="group">
+            <label class="block mb-3 font-semibold text-gray-700 text-sm flex items-center gap-2">
+              <span class="text-lg">🔌</span>
+              Port du container
+            </label>
+            <input 
+              type="number" 
+              name="port" 
+              class="w-full p-4 border-2 border-gray-200 rounded-xl text-base transition-all duration-300 bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white focus:shadow-lg focus:-translate-y-1 hover:-translate-y-0.5" 
+              value="3000" 
+              placeholder="3000" 
+              required
+            >
+          </div>
+        </div>
+
+        <div class="group">
+          <label class="block mb-3 font-semibold text-gray-700 text-sm flex items-center gap-2">
+            <span class="text-lg">🌐</span>
+            NodePort Kubernetes
+          </label>
+          <input 
+            type="number" 
+            name="node_port" 
+            class="w-full p-4 border-2 border-gray-200 rounded-xl text-base transition-all duration-300 bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white focus:shadow-lg focus:-translate-y-1 hover:-translate-y-0.5" 
+            value="30130" 
+            placeholder="30130" 
+            required
+          >
+        </div>
+
+        <!-- Environment Variables Section -->
+        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 border border-gray-200 shadow-inner">
+          <h3 class="text-gray-800 mb-6 text-xl font-semibold flex items-center gap-3">
+            <span class="text-2xl">🔧</span>
+            Variables d'environnement & Credentials Jenkins
+          </h3>
+          <div class="mb-6 text-gray-600 text-sm bg-blue-100 p-4 rounded-lg border-l-4 border-blue-500">
+            <strong class="text-blue-800">💡 Info :</strong> Configurez vos variables avec leurs credentials Jenkins pour une intégration automatique
+          </div>
+          
+          <div id="envContainer" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end animate-slide-in-row">
+              <input 
+                name="env_name" 
+                type="text" 
+                class="p-3 border-2 border-gray-200 rounded-lg text-sm transition-all duration-300 bg-white focus:outline-none focus:border-indigo-500 focus:shadow-md" 
+                placeholder="DB_HOST" 
+                required
+              >
+              <input 
+                name="env_value" 
+                type="text" 
+                class="p-3 border-2 border-gray-200 rounded-lg text-sm transition-all duration-300 bg-white focus:outline-none focus:border-indigo-500 focus:shadow-md" 
+                placeholder="localhost" 
+                required
+              >
+              <input 
+                name="secret_id" 
+                type="text" 
+                class="p-3 border-2 border-gray-200 rounded-lg text-sm transition-all duration-300 bg-white focus:outline-none focus:border-indigo-500 focus:shadow-md" 
+                placeholder="POSTGRES_HOST_ID" 
+                required
+              >
+              <button 
+                type="button" 
+                class="w-10 h-10 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-semibold cursor-pointer transition-all duration-300 flex items-center justify-center shadow-lg hover:scale-105 hover:shadow-xl" 
+                onclick="removeRow(this)" 
+                title="Supprimer"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+          
+          <button 
+            type="button" 
+            class="mt-6 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg font-semibold cursor-pointer transition-all duration-300 flex items-center gap-2 shadow-lg hover:-translate-y-1 hover:shadow-xl" 
+            onclick="addRow()"
+          >
+            ➕ Ajouter une variable
+          </button>
+        </div>
+
+        <!-- Submit Button -->
+        <button 
+          type="submit" 
+          class="w-full bg-gradient-to-r from-indigo-600 to-purple-700 text-white text-lg font-semibold py-4 px-8 rounded-xl transition-all duration-300 shadow-xl hover:-translate-y-1 hover:shadow-2xl active:translate-y-0 flex items-center justify-center gap-3"
+        >
+          🎯 Générer les fichiers
+        </button>
+      </form>
+
+      <!-- Loading -->
+      <div id="loading" class="hidden justify-center items-center gap-3 text-indigo-600 font-semibold mt-6">
+        <div class="w-5 h-5 border-3 border-gray-200 border-t-indigo-600 rounded-full spinner"></div>
+        <span>Génération en cours...</span>
+      </div>
+
+      <!-- Result -->
+      <div id="result" class="mt-8"></div>
+    </div>
+  </div>
+  
+  <script>
+    function addRow() {
+      const row = document.createElement('div');
+      row.className = 'grid grid-cols-1 md:grid-cols-4 gap-3 items-end animate-slide-in-row';
+      row.innerHTML = `
+        <input 
+          name="env_name" 
+          type="text" 
+          class="p-3 border-2 border-gray-200 rounded-lg text-sm transition-all duration-300 bg-white focus:outline-none focus:border-indigo-500 focus:shadow-md" 
+          placeholder="Nom variable (ex: DB_HOST)" 
+          required
+        >
+        <input 
+          name="env_value" 
+          type="text" 
+          class="p-3 border-2 border-gray-200 rounded-lg text-sm transition-all duration-300 bg-white focus:outline-none focus:border-indigo-500 focus:shadow-md" 
+          placeholder="Valeur par défaut" 
+          required
+        >
+        <input 
+          name="secret_id" 
+          type="text" 
+          class="p-3 border-2 border-gray-200 rounded-lg text-sm transition-all duration-300 bg-white focus:outline-none focus:border-indigo-500 focus:shadow-md" 
+          placeholder="Jenkins Credential ID" 
+          required
+        >
+        <button 
+          type="button" 
+          class="w-10 h-10 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-semibold cursor-pointer transition-all duration-300 flex items-center justify-center shadow-lg hover:scale-105 hover:shadow-xl" 
+          onclick="removeRow(this)" 
+          title="Supprimer"
+        >
+          🗑️
+        </button>
+      `;
+      document.getElementById('envContainer').appendChild(row);
+      
+      // Animation d'entrée
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(-20px)';
+      setTimeout(() => {
+        row.style.transition = 'all 0.3s ease';
+        row.style.opacity = '1';
+        row.style.transform = 'translateX(0)';
+      }, 10);
+    }
+
+    function removeRow(btn) {
+      const row = btn.parentElement;
+      row.style.transition = 'all 0.3s ease';
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(20px)';
+      setTimeout(() => row.remove(), 300);
+    }
+
+    document.getElementById('genForm').onsubmit = async function(e) {
+      e.preventDefault();
+      
+      // Afficher le loading
+      const loading = document.getElementById('loading');
+      const result = document.getElementById('result');
+      loading.classList.remove('hidden');
+      loading.classList.add('flex');
+      result.innerHTML = '';
+      
+      const form = e.target;
+      const app_name = form.app_name.value.trim();
+      const port = form.port.value.trim();
+      const node_port = form.node_port.value.trim();
+      const rows = document.querySelectorAll('#envContainer > div');
+      const envs = [];
+      
+      rows.forEach(row => {
+        const name = row.querySelector('input[name="env_name"]').value.trim();
+        const value = row.querySelector('input[name="env_value"]').value.trim();
+        const secret_id = row.querySelector('input[name="secret_id"]').value.trim();
+        if (name && secret_id) envs.push({name, value, secret_id});
+      });
+
+      try {
+        // Simuler un délai pour montrer l'animation de loading
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const response = await fetch('/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ app_name, port, node_port, envs })
+        });
+        
+        const data = await response.json();
+        
+        // Masquer le loading
+        loading.classList.add('hidden');
+        loading.classList.remove('flex');
+        
+        if (data.success) {
+          result.innerHTML = `
+            <div class="mt-8 p-6 rounded-xl bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200 flex items-center gap-3 opacity-0 translate-y-5 transition-all duration-400">
+              <span class="text-xl">✅</span>
+              <div>
+                <strong>Succès !</strong> ${data.message}
+              </div>
+            </div>
+          `;
+        } else {
+          result.innerHTML = `
+            <div class="mt-8 p-6 rounded-xl bg-gradient-to-r from-red-100 to-pink-100 text-red-800 border border-red-200 flex items-center gap-3 opacity-0 translate-y-5 transition-all duration-400">
+              <span class="text-xl">❌</span>
+              <div>
+                <strong>Erreur :</strong> ${data.message}
+              </div>
+            </div>
+          `;
+        }
+        
+        // Faire apparaître le résultat avec animation
+        setTimeout(() => {
+          const resultContainer = result.querySelector('div');
+          if (resultContainer) {
+            resultContainer.classList.remove('opacity-0', 'translate-y-5');
+            resultContainer.classList.add('opacity-100', 'translate-y-0');
+          }
+        }, 100);
+        
+      } catch (error) {
+        loading.classList.add('hidden');
+        loading.classList.remove('flex');
+        result.innerHTML = `
+          <div class="mt-8 p-6 rounded-xl bg-gradient-to-r from-red-100 to-pink-100 text-red-800 border border-red-200 flex items-center gap-3">
+            <span class="text-xl">❌</span>
+            <div>
+              <strong>Erreur de connexion :</strong> Impossible de contacter le serveur
+            </div>
+          </div>
+        `;
+      }
+    };
+
+    // Animation de typing pour le placeholder
+    const appNameInput = document.querySelector('input[name="app_name"]');
+    const placeholders = ['mon-app-backend', 'api-users', 'service-auth', 'microservice-data'];
+    let currentIndex = 0;
+    
+    setInterval(() => {
+      if (appNameInput.value === '' && appNameInput !== document.activeElement) {
+        appNameInput.placeholder = placeholders[currentIndex];
+        currentIndex = (currentIndex + 1) % placeholders.length;
+      }
+    }, 2000);
+
+    // Ajouter des effets de survol dynamiques
+    document.addEventListener('DOMContentLoaded', function() {
+      const inputs = document.querySelectorAll('input[type="text"], input[type="number"]');
+      inputs.forEach(input => {
+        input.addEventListener('mouseenter', function() {
+          this.classList.add('-translate-y-0.5');
+        });
+        
+        input.addEventListener('mouseleave', function() {
+          if (this !== document.activeElement) {
+            this.classList.remove('-translate-y-0.5');
+          }
+        });
+
+        input.addEventListener('blur', function() {
+          this.classList.remove('-translate-y-0.5');
+        });
+      });
+    });
+  </script>
+</body>
+</html>
