@@ -24,6 +24,14 @@ pipeline {
         stage('Deploy the container') {
             steps {
                     sh '''
+                        echo 'verifying container'
+                        docker ps -a | grep ${CONTAINER_NAME} > /dev/null
+                        if [ $? -eq 0 ]; then
+                            docker stop ${CONTAINER_NAME}
+                            docker rm ${CONTAINER_NAME}
+                        fi
+
+                        echo 'running container'
                         docker run -d \
                             --name ${CONTAINER_NAME} \
                             -p ${VITE_PORT}:${VITE_PORT} \
