@@ -1,31 +1,36 @@
 version: "3.9"
+
 services:
   backend:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: rsu-backend
     ports:
       - "3138:3138"
     volumes:
       - uploads:/app/uploads
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
-      - REDIS_DB=${REDIS_DB}
-      - MAIL_USERNAME=${MAIL_USERNAME}
-      - MAIL_PASSWORD=${MAIL_PASSWORD}
-      - MAIL_FROM=${MAIL_FROM}
-      - MAIL_PORT=${MAIL_PORT}
-      - MAIL_SERVER=${MAIL_SERVER}
+    env_file:
+      - .env
+    depends_on:
+      - redis
     networks:
       - rsu-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: rsu-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - rsu-network
+    volumes:
+      - redis-data:/data
+
 volumes:
   uploads:
+  redis-data:
 
 networks:
   rsu-network:

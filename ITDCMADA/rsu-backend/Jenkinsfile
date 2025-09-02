@@ -1,52 +1,72 @@
 pipeline {
     agent any
+
     environment {
-        CONTAINER_NAME   = 'rsu-backend'
-        IMAGE_NAME       = 'rsu-backend'
-        IMAGE_TAG        = "${BUILD_NUMBER}"
-        // Variables non sensibles
-        POSTGRES_USER    = credentials('DB_USER_ID')
-        POSTGRES_DB      = 'rsu'
-        POSTGRES_HOST    = credentials('DB_HOST_ID')
-        POSTGRES_PORT    = credentials('DB_PORT_ID')
-        REDIS_HOST       = credentials('REDIS_HOST_ID')
-        REDIS_PORT       = credentials('REDIS_PORT_ID')
-        REDIS_DB         = '0'
-        MAIL_USERNAME    = credentials('SMTP_USER_ID')
-        MAIL_FROM        = credentials('SMTP_USER_ID')
-        MAIL_PORT        = '587'
-        MAIL_SERVER      = credentials('SMTP_HOST_ID')
-        // Variables sensibles via credentials Jenkins
+        CONTAINER_NAME    = 'rsu-backend'
+        IMAGE_NAME        = 'rsu-backend'
+        IMAGE_TAG         = "${BUILD_NUMBER}"
+
+        // Variables PostgreSQL
+        POSTGRES_USER     = credentials('DB_USER_ID')
         POSTGRES_PASSWORD = credentials('DB_PASSWORD_ID')
-        MAIL_PASSWORD    = credentials('MAIL_PASSWORD_ID')
+        POSTGRES_DB       = 'rsu'
+        POSTGRES_HOST     = credentials('DB_HOST_ID')
+        POSTGRES_PORT     = credentials('DB_PORT_ID')
+
+        // Variables Redis (utilisation directe de docker-compose)
+        REDIS_HOST        = 'redis'
+        REDIS_PORT        = '6379'
+        REDIS_DB          = '0'
+
+        // Variables Mail
+        MAIL_USERNAME     = 'nonekon263@gmail.com'
+        MAIL_PASSWORD     = 'kobh vqts uejy phvu'  // ⚠️ À mettre en credentials Jenkins idéalement
+        MAIL_FROM         = 'nonekon263@gmail.com'
+        MAIL_PORT         = '587'
+        MAIL_SERVER       = 'smtp.gmail.com'
     }
+
     stages {
         stage('Build') {
             steps {
                 sh 'docker-compose build'
             }
         }
+
         stage('Deploy') {
             steps {
-                sh '''
-                    docker-compose up -d \
-                    -e POSTGRES_USER=${POSTGRES_USER} \
-                    -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
-                    -e POSTGRES_DB=${POSTGRES_DB} \
-                    -e POSTGRES_HOST=${POSTGRES_HOST} \
-                    -e POSTGRES_PORT=${POSTGRES_PORT} \
-                    -e REDIS_HOST=${REDIS_HOST} \
-                    -e REDIS_PORT=${REDIS_PORT} \
-                    -e REDIS_DB=${REDIS_DB} \
-                    -e MAIL_USERNAME=${MAIL_USERNAME} \
-                    -e MAIL_PASSWORD=${MAIL_PASSWORD} \
-                    -e MAIL_FROM=${MAIL_FROM} \
-                    -e MAIL_PORT=${MAIL_PORT} \
-                    -e MAIL_SERVER=${MAIL_SERVER}
-                '''
+                script {
+                    // Créer un fichier .env temporaire
+                    sh '''
+                        cat > .env <<EOF
+POSTGRES_USER=${POSTGRES_USER}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+POSTGRES_DB=${POSTGRES_DB}
+POSTGRES_HOST=${POSTGRES_HOST}
+POSTGRES_PORT=${POSTGRES_PORT}
+
+REDIS_HOST=${REDIS_HOST}
+REDIS_PORT=${REDIS_PORT}
+REDIS_DB=${REDIS_DB}
+
+MAIL_USERNAME=${MAIL_USERNAME}
+MAIL_PASSWORD=${MAIL_PASSWORD}
+MAIL_FROM=${MAIL_FROM}
+MAIL_PORT=${MAIL_PORT}
+MAIL_SERVER=${MAIL_SERVER}
+EOF
+                    '''
+
+                    // Lancer docker-compose avec .env
+                    sh 'docker-compose --env-file .env up -d'
+
+                    // Nettoyer le fichier .env temporaire
+                    sh 'rm .env'
+                }
             }
         }
     }
+
     post {
         always {
             cleanWs()
