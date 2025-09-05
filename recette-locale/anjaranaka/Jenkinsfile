@@ -17,6 +17,8 @@ pipeline {
         VITE_API_URL_SERVICECITOYEN = 'https://gateway.tsirylab.com/servicecitoyen'
         VITE_API_URL_SERVICEAUTH = 'https://auth.tsirylab.com/serviceauth'
         VITE_API_URL_SERVICEZONE = 'https://zone.tsirylab.com/servicezone'
+        VITE_API_URL_SERVICEOFFRECOMMUNE = 'https://offrecommune.tsirylab.com/serviceoffrecommune'
+        VITE_API_SERVICEMODERNEMARKET = 'https://modernemarket.tsirylab.com/servicemodernemarket'
     }
 
     stages {
@@ -35,6 +37,8 @@ pipeline {
                           --build-arg VITE_API_URL_SERVICECITOYEN=${VITE_API_URL_SERVICECITOYEN} \
                           --build-arg VITE_API_URL_SERVICEAUTH=${VITE_API_URL_SERVICEAUTH} \
                           --build-arg VITE_API_URL_SERVICEZONE=${VITE_API_URL_SERVICEZONE} \
+                          --build-arg VITE_API_URL_SERVICEOFFRECOMMUNE=${VITE_API_URL_SERVICEOFFRECOMMUNE} \
+                          --build-arg VITE_API_SERVICEMODERNEMARKET=${VITE_API_SERVICEMODERNEMARKET} \
                           --build-arg VITE_PORT=${VITE_PORT} \
                           -t ${FULL_IMAGE_NAME} .
 
@@ -74,6 +78,8 @@ pipeline {
                           --from-literal=VITE_API_URL_SERVICECITOYEN="${VITE_API_URL_SERVICECITOYEN}" \
                           --from-literal=VITE_API_URL_SERVICEAUTH="${VITE_API_URL_SERVICEAUTH}" \
                           --from-literal=VITE_API_URL_SERVICEZONE="${VITE_API_URL_SERVICEZONE}" \
+                          --from-literal=VITE_API_URL_SERVICEOFFRECOMMUNE="${VITE_API_URL_SERVICEOFFRECOMMUNE}" \
+                          --from-literal=VITE_API_SERVICEMODERNEMARKET="${VITE_API_SERVICEMODERNEMARKET}" \
                           --from-literal=VITE_PORT="${VITE_PORT}" \
                           --namespace=${NAMESPACE}
 
