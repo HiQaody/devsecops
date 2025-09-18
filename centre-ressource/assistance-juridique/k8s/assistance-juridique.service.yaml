@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: assistance-juridique-service
+  namespace: pnud-agvm
+spec:
+  selector:
+    app: assistance-juridique
+  ports:
+    - protocol: TCP
+      port: 4013
+      targetPort: 4013
+      nodePort: 30048
+  type: NodePort

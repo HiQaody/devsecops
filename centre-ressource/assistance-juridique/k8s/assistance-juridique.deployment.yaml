@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: assistance-juridique
+  namespace: pnud-agvm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: assistance-juridique
+  template:
+    metadata:
+      labels:
+        app: assistance-juridique
+    spec:
+      containers:
+      - name: assistance-juridique
+        image: ${FULL_IMAGE_NAME}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 4013
+          name: http
+        env:
+        - name: PORT
+          value: "4013"
+        envFrom:
+        - secretRef:
+            name: assistance-juridique-secret
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 4013            # ou "http" si vous préférez le nom du port
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4013            # ou "http"
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+      imagePullSecrets:
+      - name: harbor-registry-secret
