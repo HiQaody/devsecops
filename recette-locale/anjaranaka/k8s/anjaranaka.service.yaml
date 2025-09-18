@@ -10,5 +10,5 @@ spec:
     - protocol: TCP
       port: 4005
       targetPort: 4005
-      nodePort: 30045
+      nodePort: 30046
   type: NodePort
