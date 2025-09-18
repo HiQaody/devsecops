@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicepaiement-service
+  namespace: ${NAMESPACE}
+spec:
+  type: NodePort
+  selector:
+    app: servicepaiement
+  ports:
+    - protocol: TCP
+      port: 5037
+      targetPort: 5037
+      nodePort: 30137
