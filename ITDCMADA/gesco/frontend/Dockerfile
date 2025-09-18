@@ -5,12 +5,12 @@ FROM node:22-slim AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci --ignore-scripts && npm cache clean --force
 
 COPY . .
 
 ARG VITE_API_URL
-ARG VITE_PORT=3137
+ARG VITE_PORT=3140
 
 ENV VITE_API_URL=$VITE_API_URL \
     VITE_PORT=$VITE_PORT
