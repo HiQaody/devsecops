@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  gesco-backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: gesco-backend
+    ports:
+      - "3141:3141"
+    volumes:
+      - uploadsreinscri:/app/uploadsreinscri
+    env_file:
+      - .env
+    networks:
+      - gesco-network
+
+volumes:
+  uploadsreinscri:
+
+networks:
+  gesco-network:
+    driver: bridge

@@ -1,0 +1,71 @@
+pipeline {
+    agent any
+
+    environment {
+        CONTAINER_NAME    = 'gesco-backend'
+        IMAGE_NAME        = 'gesco-backend'
+        IMAGE_TAG         = "${BUILD_NUMBER}"
+
+        // Variables PostgreSQL
+        POSTGRES_USER     = credentials('DB_USER_ID')
+        POSTGRES_PASSWORD = credentials('DB_PASSWORD_ID')
+        POSTGRES_DB       = 'gesco'
+        POSTGRES_HOST     = credentials('DB_HOST_ID')
+        POSTGRES_PORT     = credentials('DB_PORT_ID')
+        DATABASE_URL      = "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+        VITE_BASE_URL     = 'https://gesco-api.itdcmada.com'
+        FRONTEND_URL      = 'https://gesco.itdcmada.com'
+
+        // Variables Mail
+        GOOGLE_CLIENT_ID     = 'nonekon263@gmail.com'
+        GOOGLE_CLIENT_SECRET = 'kobh vqts uejy phvu'
+        GOOGLE_REDIRECT_URI  = 'https://gesco-api.itdcmada.com/api/auth/google/callback'
+
+        SECRET_KEY = 'nonekon263@gmail.com'
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                sh 'docker-compose build'
+            }
+        }
+
+        stage('Down Container') {
+            steps {
+                sh 'docker-compose down'
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                script {
+                    // Créer un fichier .env temporaire
+                    sh '''
+                        cat > .env <<EOF
+                        DATABASE_URL=${DATABASE_URL}
+                        VITE_BASE_URL=${VITE_BASE_URL}
+                        FRONTEND_URL=${FRONTEND_URL}
+                        GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+                        GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+                        GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+                        SECRET_KEY=${SECRET_KEY}
+                        EOF
+                    '''
+
+                    // Lancer docker-compose avec .env
+                    sh 'docker-compose --env-file .env up -d'
+
+                    // Nettoyer le fichier .env temporaire
+                    sh 'rm .env'
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
