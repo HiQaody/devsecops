@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: front-urbanisme
+  namespace: pnud-agvm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: front-urbanisme
+  template:
+    metadata:
+      labels:
+        app: front-urbanisme
+    spec:
+      containers:
+      - name: front-urbanisme
+        image: ${FULL_IMAGE_NAME}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 4014
+          name: http
+        env:
+        - name: PORT
+          value: "4014"
+        envFrom:
+        - secretRef:
+            name: front-urbanisme-secret
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 4014            # ou "http" si vous préférez le nom du port
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4014            # ou "http"
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+      imagePullSecrets:
+      - name: harbor-registry-secret

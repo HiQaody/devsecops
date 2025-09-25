@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: front-urbanisme-service
+  namespace: pnud-agvm
+spec:
+  selector:
+    app: front-urbanisme
+  ports:
+    - protocol: TCP
+      port: 4014
+      targetPort: 4014
+      nodePort: 30049
+  type: NodePort
