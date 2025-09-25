@@ -13,15 +13,16 @@ pipeline {
         POSTGRES_HOST     = credentials('DB_HOST_ID')
         POSTGRES_PORT     = credentials('DB_PORT_ID')
         DATABASE_URL      = "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
-        VITE_BASE_URL     = 'https://gesco-api.itdcmada.com'
-        FRONTEND_URL      = 'https://gesco.itdcmada.com'
 
-        // Variables Mail
-        GOOGLE_CLIENT_ID     = 'nonekon263@gmail.com'
-        GOOGLE_CLIENT_SECRET = 'kobh vqts uejy phvu'
-        GOOGLE_REDIRECT_URI  = 'https://gesco-api.itdcmada.com/api/auth/google/callback'
+        // Variables Frontend
+        FRONTEND_URL      = 'http://gesco.itdcmada.com'
+        VITE_BASE_URL     = 'http://gesco-api.itdcmada.com'
+        SECRET_KEY        = 'secret-gesco'
 
-        SECRET_KEY = 'nonekon263@gmail.com'
+        // Variables Google
+        GOOGLE_CLIENT_ID  = 'your-google-client-id'
+        GOOGLE_CLIENT_SECRET = 'your-google-client-secret'
+        GOOGLE_REDIRECT_URI = 'http://gesco-api.itdcmada.com/api/auth/google/callback'
     }
 
     stages {
@@ -31,26 +32,23 @@ pipeline {
             }
         }
 
-        stage('Down Container') {
-            steps {
-                sh 'docker-compose down'
-            }
-        }
-
-        stage('Deploy Container') {
+        stage('Deploy') {
             steps {
                 script {
                     // Créer un fichier .env temporaire
                     sh '''
                         cat > .env <<EOF
-                        DATABASE_URL=${DATABASE_URL}
-                        VITE_BASE_URL=${VITE_BASE_URL}
-                        FRONTEND_URL=${FRONTEND_URL}
-                        GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-                        GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-                        GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
-                        SECRET_KEY=${SECRET_KEY}
-                        EOF
+DATABASE_URL=${DATABASE_URL}
+
+FRONTEND_URL=${FRONTEND_URL}
+VITE_BASE_URL=${VITE_BASE_URL}
+SECRET_KEY=${SECRET_KEY}
+
+GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+
+EOF
                     '''
 
                     // Lancer docker-compose avec .env
