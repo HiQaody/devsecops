@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: serviceterritoire-v2
+  namespace: ${NAMESPACE}
+  labels:
+    app: serviceterritoire-v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: serviceterritoire-v2
+  template:
+    metadata:
+      labels:
+        app: serviceterritoire-v2
+    spec:
+      containers:
+        - name: serviceterritoire-v2
+          image: ${FULL_IMAGE_NAME}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5039
+              name: http
+          envFrom:
+            - secretRef:
+                name: serviceterritoire-v2-secret
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /serviceterritoire-v2
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /serviceterritoire-v2
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      imagePullSecrets:
+        - name: harbor-registry-secret

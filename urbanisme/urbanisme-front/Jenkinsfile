@@ -14,9 +14,9 @@ pipeline {
         HPA_NAME         = 'front-urbanisme-hpa'
         SECRET_NAME      = 'front-urbanisme-secret'
         VITE_PORT        = '4014'
-        VITE_GEOSERVER_URL = 'http://173.249.25.94:8082/geoserver'
-        VITE_WORKSPACE = 'urbanisme_carto'
-        VITE_API_BASE_URL = 'https://gateway.tsirylab.com'
+        VITE_GEOSERVER_URL = '/geoserver/Fianarantsoa'
+        VITE_WORKSPACE = 'Fianarantsoa'
+        VITE_API_BASE_URL = 'http://173.249.25.94:8082'
     }
 
     stages {
