@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: matac-service
+  namespace: pnud-agvm
+spec:
+  selector:
+    app: matac
+  ports:
+    - protocol: TCP
+      port: 4015
+      targetPort: 4015
+      nodePort: 30050
+  type: NodePort

@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matac
+  namespace: pnud-agvm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: matac
+  template:
+    metadata:
+      labels:
+        app: matac
+    spec:
+      containers:
+      - name: matac
+        image: ${FULL_IMAGE_NAME}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 4015
+          name: http
+        env:
+        - name: PORT
+          value: "4015"
+        envFrom:
+        - secretRef:
+            name: matac-secret
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 4015
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4015
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+      imagePullSecrets:
+      - name: harbor-registry-secret
