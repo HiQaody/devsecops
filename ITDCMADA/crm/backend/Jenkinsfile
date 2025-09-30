@@ -1,0 +1,79 @@
+pipeline {
+    agent any
+
+    environment {
+        CONTAINER_NAME = 'crm-backend'
+        IMAGE_NAME     = 'crm-backend'
+        IMAGE_TAG      = "${BUILD_NUMBER}"
+        PORT           = '3143'
+        FRONT_URL      = 'https://crm.itdcmada.com,http://localhost:3000'
+        DB_USER        = credentials('DB_USER_ID')
+        DB_PASS        = credentials('DB_PASSWORD_ID')
+        DB_NAME        = 'crm'
+        DB_HOST        = credentials('DB_HOST_ID')
+        DB_PORT        = credentials('DB_PORT_ID')
+        DATABASE_URL   = 'postgresql+asyncpg://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}'
+        SMTP_HOST      = 'smtp.gmail.com'
+        SMTP_PORT      = '587'
+        SENDER_EMAIL   = 'rabemalalasarobidyravakiniaina@gmail.com'
+        SENDER_PASSWORD= 'ypehpikvjnoigxwq'
+    }
+
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    echo "➡️ Building image ${IMAGE_NAME}:${IMAGE_TAG}"
+                    docker build \
+                        --build-arg FRONT_URL=${FRONT_URL} \
+                        --build-arg PORT=${PORT} \
+                        --build-arg DB_USER=${DB_USER} \
+                        --build-arg DB_PASS=${DB_PASS} \
+                        --build-arg DB_NAME=${DB_NAME} \
+                        --build-arg DB_HOST=${DB_HOST} \
+                        --build-arg DB_PORT=${DB_PORT} \
+                        --build-arg DATABASE_URL=${DATABASE_URL} \
+                        --build-arg SMTP_HOST=${SMTP_HOST} \
+                        --build-arg SMTP_PORT=${SMTP_PORT} \
+                        --build-arg SENDER_EMAIL=${SENDER_EMAIL} \
+                        --build-arg SENDER_PASSWORD=${SENDER_PASSWORD} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                '''
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh '''
+                    echo "➡️ Stopping old container if exists"
+                    docker rm -f ${CONTAINER_NAME} || true
+
+                    echo "➡️ Running new container"
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p ${PORT}:${PORT} \
+                        --restart unless-stopped \
+                        -e FRONT_URL=${FRONT_URL} \
+                        -e PORT=${PORT} \
+                        -e DB_USER=${DB_USER} \
+                        -e DB_PASS=${DB_PASS} \
+                        -e DB_NAME=${DB_NAME} \
+                        -e DB_HOST=${DB_HOST} \
+                        -e DB_PORT=${DB_PORT} \
+                        -e DATABASE_URL=${DATABASE_URL} \
+                        -e SMTP_HOST=${SMTP_HOST} \
+                        -e SMTP_PORT=${SMTP_PORT} \
+                        -e SENDER_EMAIL=${SENDER_EMAIL} \
+                        -e SENDER_PASSWORD=${SENDER_PASSWORD} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
