@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: serviceterritoire-v2-service
+  name: servicealignement-service
   namespace: ${NAMESPACE}
 spec:
   type: NodePort
   selector:
-    app: serviceterritoire-v2
+    app: servicealignement
   ports:
     - protocol: TCP
-      port: 5039
-      targetPort: 5039
-      nodePort: 30139
+      port: 5040
+      targetPort: 5040
+      nodePort: 30140

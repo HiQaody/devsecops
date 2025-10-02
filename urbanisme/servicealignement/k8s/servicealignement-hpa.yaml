@@ -1,13 +1,13 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: serviceterritoire-v2-hpa
+  name: servicealignement-hpa
   namespace: ${NAMESPACE}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: serviceterritoire-v2
+    name: servicealignement
   minReplicas: 1
   maxReplicas: 5
   metrics:

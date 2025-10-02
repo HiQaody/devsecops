@@ -4,16 +4,16 @@ pipeline {
     environment {
         REGISTRY         = 'harbor.tsirylab.com'
         HARBOR_PROJECT   = 'pnud-agvm'
-        IMAGE_NAME       = 'serviceterritoire-v2'
+        IMAGE_NAME       = 'servicealignement'
         IMAGE_TAG        = "${BUILD_NUMBER}"
         FULL_IMAGE_NAME  = "${REGISTRY}/${HARBOR_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
         NAMESPACE        = 'pnud-agvm'
         K8S_DIR          = 'k8s'
-        DEPLOYMENT_NAME  = 'serviceterritoire-v2'
-        SERVICE_NAME     = 'serviceterritoire-v2-service'
-        HPA_NAME         = 'serviceterritoire-v2-hpa'
-        PORT             = '5039'
-        POSTGRES_DB      = 'serviceterritoire-v2'
+        DEPLOYMENT_NAME  = 'servicealignement'
+        SERVICE_NAME     = 'servicealignement-service'
+        HPA_NAME         = 'servicealignement-hpa'
+        PORT             = '5040'
+        DATABASE_NAME    = 'servicealignement'
     }
 
     stages {
@@ -63,11 +63,10 @@ pipeline {
             steps {
                 withCredentials([
                     string(credentialsId: 'IP_SERVER_ID', variable: 'IP_SERVER'),
-                    string(credentialsId: 'POSTGRES_HOST_ID', variable: 'POSTGRES_HOST'),
-                    string(credentialsId: 'POSTGRES_PORT_ID', variable: 'POSTGRES_PORT'),
-                    string(credentialsId: 'POSTGRES_USER_ID', variable: 'POSTGRES_USER'),
-                    string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'POSTGRES_PASSWORD'),
-                    string(credentialsId: 'GATEWAY_URL_ID', variable: 'IMAGE_URL'),
+                    string(credentialsId: 'POSTGRES_HOST_ID', variable: 'DATABASE_HOST'),
+                    string(credentialsId: 'POSTGRES_PORT_ID', variable: 'DATABASE_PORT'),
+                    string(credentialsId: 'POSTGRES_USER_ID', variable: 'DATABASE_USERNAME'),
+                    string(credentialsId: 'POSTGRES_PASSWORD_ID', variable: 'DATABASE_PASSWORD'),
                     file(credentialsId: 'kubeconfig-jenkins', variable: 'KUBECONFIG'),
                     usernamePassword(
                         credentialsId: 'harbor-credentials',
@@ -92,14 +91,13 @@ pipeline {
                               --namespace=${NAMESPACE}
 
                             echo "=== Création du secret applicatif ==="
-                            kubectl delete secret serviceterritoire-v2-secret -n ${NAMESPACE} --ignore-not-found=true
-                            kubectl create secret generic serviceterritoire-v2-secret \
-                              --from-literal=IMAGE_URL="${IMAGE_URL}" \
-                              --from-literal=POSTGRES_HOST="${POSTGRES_HOST}" \
-                              --from-literal=POSTGRES_PORT="${POSTGRES_PORT}" \
-                              --from-literal=POSTGRES_USER="${POSTGRES_USER}" \
-                              --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
-                              --from-literal=POSTGRES_DB="${POSTGRES_DB}" \
+                            kubectl delete secret servicealignement-secret -n ${NAMESPACE} --ignore-not-found=true
+                            kubectl create secret generic servicealignement-secret \
+                              --from-literal=DATABASE_HOST="${DATABASE_HOST}" \
+                              --from-literal=DATABASE_PORT="${DATABASE_PORT}" \
+                              --from-literal=DATABASE_USERNAME="${DATABASE_USERNAME}" \
+                              --from-literal=DATABASE_PASSWORD="${DATABASE_PASSWORD}" \
+                              --from-literal=DATABASE_NAME="${DATABASE_NAME}" \
                               --namespace=${NAMESPACE}
 
                             echo "=== Application des manifestes Kubernetes ==="
