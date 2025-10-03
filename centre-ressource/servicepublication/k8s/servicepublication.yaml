@@ -1,30 +1,30 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: serviceconstruction
+  name: servicepublication
   namespace: ${NAMESPACE}
   labels:
-    app: serviceconstruction
+    app: servicepublication
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: serviceconstruction
+      app: servicepublication
   template:
     metadata:
       labels:
-        app: serviceconstruction
+        app: servicepublication
     spec:
       containers:
-        - name: serviceconstruction
+        - name: servicepublication
           image: ${FULL_IMAGE_NAME}
           imagePullPolicy: Always
           ports:
-            - containerPort: 5041
+            - containerPort: 5011
               name: http
           envFrom:
             - secretRef:
-                name: serviceconstruction-secret
+                name: servicepublication-secret
           resources:
             requests:
               cpu: "200m"
@@ -34,7 +34,7 @@ spec:
               memory: "1Gi"
           livenessProbe:
             httpGet:
-              path: /serviceconstruction
+              path: /servicepublication
               port: http
             initialDelaySeconds: 30
             periodSeconds: 10
@@ -42,7 +42,7 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /serviceconstruction
+              path: /servicepublication
               port: http
             initialDelaySeconds: 5
             periodSeconds: 5
@@ -56,11 +56,5 @@ spec:
             capabilities:
               drop:
                 - ALL
-          volumeMounts:
-            - name: uploads
-              mountPath: /app/uploads
-      volumes:
-        - name: uploads
-          emptyDir: {}
       imagePullSecrets:
         - name: harbor-registry-secret
