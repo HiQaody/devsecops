@@ -12,12 +12,14 @@ pipeline {
         DB_NAME        = 'crm'
         DB_HOST        = credentials('DB_HOST_ID')
         DB_PORT        = credentials('DB_PORT_ID')
-        DATABASE_URL   = 'postgresql+asyncpg://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}'
+        DATABASE_URL   = "postgresql+asyncpg://${DB_USER}:itdcmada%40@${DB_HOST}:${DB_PORT}/${DB_NAME}"
         SMTP_HOST      = 'smtp.gmail.com'
         SMTP_PORT      = '587'
         SENDER_EMAIL   = 'rabemalalasarobidyravakiniaina@gmail.com'
         SENDER_PASSWORD= 'ypehpikvjnoigxwq'
-    }
+        OPENAI_API_KEY = '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'
+}
+
 
     stages {
         stage('Build Docker Image') {
@@ -37,6 +39,7 @@ pipeline {
                         --build-arg SMTP_PORT=${SMTP_PORT} \
                         --build-arg SENDER_EMAIL=${SENDER_EMAIL} \
                         --build-arg SENDER_PASSWORD=${SENDER_PASSWORD} \
+                        --build-arg OPENAI_API_KEY=${OPENAI_API_KEY} \
                         -t ${IMAGE_NAME}:${IMAGE_TAG} .
                 '''
             }
@@ -65,6 +68,7 @@ pipeline {
                         -e SMTP_PORT=${SMTP_PORT} \
                         -e SENDER_EMAIL=${SENDER_EMAIL} \
                         -e SENDER_PASSWORD=${SENDER_PASSWORD} \
+                        -e OPENAI_API_KEY=${OPENAI_API_KEY} \
                         ${IMAGE_NAME}:${IMAGE_TAG}
                 '''
             }

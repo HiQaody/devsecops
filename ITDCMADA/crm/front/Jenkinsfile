@@ -5,33 +5,38 @@ pipeline {
         CONTAINER_NAME   = 'crm-front'
         IMAGE_NAME       = 'crm-front'
         IMAGE_TAG        = "${BUILD_NUMBER}"
-        VITE_PORT        = '3142'
-        VITE_API_URL     = 'https://crm-api.itdcmada.com'
+        PORT        = '3142'
+        NEXT_PUBLIC_API_URL     = 'https://crm-api.itdcmada.com'
     }
 
     stages {
         stage('Build & Push') {
             steps {
                 sh '''
-                        docker build \
-                          --build-arg VITE_API_URL=${VITE_API_URL} \
-                          --build-arg VITE_PORT=${VITE_PORT} \
-                          -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                    '''
+                    echo "🛠️ Build de l'image Docker..."
+                    docker build \
+                      --build-arg NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+                      --build-arg PORT=${PORT} \
+                      -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                '''
             }
         }
 
         stage('Deploy the container') {
             steps {
-                    sh '''
-                        docker run -d \
-                            --name ${CONTAINER_NAME} \
-                            -p ${VITE_PORT}:${VITE_PORT} \
-                            --restart unless-stopped \
-                            -e VITE_API_URL=${VITE_API_URL} \
-                            -e VITE_PORT=${VITE_PORT} \
-                            ${IMAGE_NAME}:${IMAGE_TAG}
-                    '''
+                sh '''
+                    echo "🧹 Suppression du conteneur existant s'il existe..."
+                    docker rm -f ${CONTAINER_NAME} || true
+
+                    echo "🚀 Démarrage du nouveau conteneur..."
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p ${PORT}:${PORT} \
+                        --restart unless-stopped \
+                        -e NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+                        -e PORT=${PORT} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
             }
         }
     }

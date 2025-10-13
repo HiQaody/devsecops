@@ -2,61 +2,86 @@ pipeline {
     agent any
 
     environment {
-        CONTAINER_NAME    = 'gesco-backend'
-        IMAGE_NAME        = 'gesco-backend'
-        IMAGE_TAG         = "${BUILD_NUMBER}"
-
-        // Variables PostgreSQL
-        POSTGRES_USER     = credentials('DB_USER_ID')
-        POSTGRES_PASSWORD = credentials('DB_PASSWORD_ID')
-        POSTGRES_DB       = 'gesco'
-        POSTGRES_HOST     = credentials('DB_HOST_ID')
-        POSTGRES_PORT     = credentials('DB_PORT_ID')
-        DATABASE_URL      = "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
-
-        // Variables Frontend
-        FRONTEND_URL      = 'http://gesco.itdcmada.com'
-        VITE_BASE_URL     = 'http://gesco-api.itdcmada.com'
-        SECRET_KEY        = 'secret-gesco'
-
-        // Variables Google
-        GOOGLE_CLIENT_ID  = 'your-google-client-id'
-        GOOGLE_CLIENT_SECRET = 'your-google-client-secret'
+        CONTAINER_NAME = 'gesco-backend'
+        IMAGE_NAME     = 'gesco-backend'
+        IMAGE_TAG      = "${BUILD_NUMBER}"
+        PORT           = '3141'
+        FRONT_URL      = 'https://gesco.itdcmada.com,http://localhost:3000'
+        DB_USER        = credentials('DB_USER_ID')
+        DB_PASS        = credentials('DB_PASSWORD_ID')
+        DB_NAME        = 'gesco'
+        DB_HOST        = credentials('DB_HOST_ID')
+        DB_PORT        = credentials('DB_PORT_ID')
+        MINIO_URL      = credentials('MINIO_HOST_ID')
+        MINIO_ACCESS_KEY = credentials('MINIO_ACCESS_KEY_ID')
+        MINIO_SECRET_KEY = credentials('MINIO_SECRET_KEY_ID')
+        GOOGLE_CLIENT_ID  = 'nonekon263@gmail.com'
+        GOOGLE_CLIENT_SECRET = 'kobh vqts uejy phvu'
         GOOGLE_REDIRECT_URI = 'http://gesco-api.itdcmada.com/api/auth/google/callback'
+        DATABASE_URL   = "postgresql://${DB_USER}:itdcmada%40@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+        MAIL_SERVER    = 'smtp.gmail.com'
+        MAIL_FROM      = 'rabemalalasarobidyravakiniaina@gmail.com'
+        MAIL_PORT      = '587'
+        MAIL_USERNAME  = 'rabemalalasarobidyravakiniaina@gmail.com'
+        MAIL_PASSWORD  = 'ypehpikvjnoigxwq'
+        SECRET_KEY     = '7uM3X7kZlQGg2y7B8eL4iM6kQhN8mG5rP3jLwQhV0sY='
     }
 
     stages {
-        stage('Build') {
+        stage('Build Docker Image') {
             steps {
-                sh 'docker-compose build'
+                sh """
+                    echo "➡️ Building image ${IMAGE_NAME}:${IMAGE_TAG}"
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} \\
+                        --build-arg FRONT_URL="${FRONT_URL}" \\
+                        --build-arg PORT="${PORT}" \\
+                        --build-arg DATABASE_URL="${DATABASE_URL}" \\
+                        --build-arg MAIL_SERVER="${MAIL_SERVER}" \\
+                        --build-arg MAIL_PORT="${MAIL_PORT}" \\
+                        --build-arg MAIL_FROM="${MAIL_FROM}" \\
+                        --build-arg MAIL_USERNAME="${MAIL_USERNAME}" \\
+                        --build-arg MAIL_PASSWORD="${MAIL_PASSWORD}" \\
+                        --build-arg SECRET_KEY="${SECRET_KEY}" \\
+                        --build-arg MINIO_URL="${MINIO_URL}" \\
+                        --build-arg MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY}" \\
+                        --build-arg MINIO_SECRET_KEY="${MINIO_SECRET_KEY}" \\
+                        --build-arg GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID}" \\
+                        --build-arg GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET}" \\
+                        --build-arg GOOGLE_REDIRECT_URI="${GOOGLE_REDIRECT_URI}" \\
+                        .
+                """
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy Container') {
             steps {
-                script {
-                    // Créer un fichier .env temporaire
-                    sh '''
-                        cat > .env <<EOF
-DATABASE_URL=${DATABASE_URL}
+                sh """
+                    echo "➡️ Stopping old container if exists"
+                    docker rm -f ${CONTAINER_NAME} || true
 
-FRONTEND_URL=${FRONTEND_URL}
-VITE_BASE_URL=${VITE_BASE_URL}
-SECRET_KEY=${SECRET_KEY}
-
-GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
-
-EOF
-                    '''
-
-                    // Lancer docker-compose avec .env
-                    sh 'docker-compose --env-file .env up -d'
-
-                    // Nettoyer le fichier .env temporaire
-                    sh 'rm .env'
-                }
+                    echo "➡️ Running new container"
+                    docker run -d \\
+                        --name ${CONTAINER_NAME} \\
+                        -p ${PORT}:${PORT} \\
+                        --restart unless-stopped \\
+                        -e FRONT_URL="${FRONT_URL}" \\
+                        -e PORT="${PORT}" \\
+                        -e DB_USER="${DB_USER}" \\
+                        -e DATABASE_URL="${DATABASE_URL}" \\
+                        -e MINIO_URL="${MINIO_URL}" \\
+                        -e MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY}" \\
+                        -e MINIO_SECRET_KEY="${MINIO_SECRET_KEY}" \\
+                        -e GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID}" \\
+                        -e GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET}" \\
+                        -e GOOGLE_REDIRECT_URI="${GOOGLE_REDIRECT_URI}" \\
+                        -e MAIL_SERVER="${MAIL_SERVER}" \\
+                        -e MAIL_PORT="${MAIL_PORT}" \\
+                        -e MAIL_FROM="${MAIL_FROM}" \\
+                        -e MAIL_USERNAME="${MAIL_USERNAME}" \\
+                        -e MAIL_PASSWORD="${MAIL_PASSWORD}" \\
+                        -e SECRET_KEY="${SECRET_KEY}" \\
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                """
             }
         }
     }

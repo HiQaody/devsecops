@@ -1,34 +1,24 @@
-###########################################################################
-# ÉTAPE 1 – Build Vite
-###########################################################################
-FROM node:22-slim AS builder
+FROM node:22-slim
+
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --ignore-scripts && npm cache clean --force
+RUN npm install
 
 COPY . .
 
-ARG VITE_API_URL
-ARG VITE_PORT=3140
+# Ajouter les arguments pour la construction
+ARG NEXT_PUBLIC_BASE_URL
 
-ENV VITE_API_URL=$VITE_API_URL \
-    VITE_PORT=$VITE_PORT
+# Définir les variables d'environnement
+ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL
 
 RUN npm run build
 
-###########################################################################
-# ÉTAPE 2 – Image Nginx (non-root)
-###########################################################################
-FROM nginxinc/nginx-unprivileged:1.25-alpine AS runner
-USER 101
-WORKDIR /usr/share/nginx/html
+EXPOSE 3140
 
-# On écrase simplement les fichiers par défaut
-COPY --from=builder --chown=101:101 /app/dist .
+# Copier le script d'initialisation et s'assurer qu'il est exécutable
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-ENV PORT=$VITE_PORT
-EXPOSE $VITE_PORT
-
-CMD ["nginx","-g","daemon off;"]
+CMD ["/entrypoint.sh"]
