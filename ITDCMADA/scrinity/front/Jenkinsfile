@@ -3,67 +3,62 @@ pipeline {
 
     environment {
         CONTAINER_NAME = 'scrinity'
-        IMAGE_NAME       = 'scrinity'
-        IMAGE_TAG        = "${BUILD_NUMBER}"
+        IMAGE_NAME     = 'scrinity'
+        IMAGE_TAG      = "${BUILD_NUMBER}"
 
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_cHJvdmVuLWNvbGxpZS0yMS5jbGVyay5hY2NvdW50cy5kZXYk'
-
         CLERK_SECRET_KEY = 'sk_test_6jcshAlOLgYmgzLpBPhVD0n6pn8QBctbt8UA4ipQHB'
 
         NEXT_PUBLIC_BACKEND_URL = 'https://scrinity-api.itdcmada.com'
+        NEXT_PUBLIC_APP_DOMAIN  = 'https://scrinity.itdcmada.com'
 
-        NEXT_PUBLIC_APP_DOMAIN = 'https://scrinity.itdcmada.com'
-
-        PORT        = '3144'
+        PORT = '3144'
     }
 
     stages {
-        stage('Build & Push') {
+        stage('Build Docker Image') {
             steps {
                 sh '''
-                        set -e
+                    set -e
+                    echo "🚧 Building Docker image ${IMAGE_NAME}:${IMAGE_TAG}"
 
-                        docker build \
-
-                          --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY} \
-
-                          --build-arg CLERK_SECRET_KEY=${CLERK_SECRET_KEY} \
-
-                          --build-arg NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL} \
-
-                          --build-arg NEXT_PUBLIC_APP_DOMAIN=${NEXT_PUBLIC_APP_DOMAIN} \
-
-                          -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                    '''
+                    docker build \
+                        --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}" \
+                        --build-arg CLERK_SECRET_KEY="${CLERK_SECRET_KEY}" \
+                        --build-arg NEXT_PUBLIC_BACKEND_URL="${NEXT_PUBLIC_BACKEND_URL}" \
+                        --build-arg NEXT_PUBLIC_APP_DOMAIN="${NEXT_PUBLIC_APP_DOMAIN}" \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                '''
             }
         }
 
         stage('Deploy Container') {
             steps {
                 sh '''
-                    echo "Stopping old container if exists"
+                    set -e
+                    echo "🧹 Stopping old container if exists"
                     docker rm -f ${CONTAINER_NAME} || true
 
-                    echo "Running new container"
+                    echo "🚀 Running new container"
                     docker run -d \
                         --name ${CONTAINER_NAME} \
                         -p ${PORT}:${PORT} \
                         --restart unless-stopped \
-
-                        -e NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY} \
-
-                        -e CLERK_SECRET_KEY=${CLERK_SECRET_KEY} \
-
-                        -e NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL} \
-
-                        -e NEXT_PUBLIC_APP_DOMAIN=${NEXT_PUBLIC_APP_DOMAIN} \
-
-                        -e PORT=${PORT} \
+                        -e NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}" \
+                        -e CLERK_SECRET_KEY="${CLERK_SECRET_KEY}" \
+                        -e NEXT_PUBLIC_BACKEND_URL="${NEXT_PUBLIC_BACKEND_URL}" \
+                        -e NEXT_PUBLIC_APP_DOMAIN="${NEXT_PUBLIC_APP_DOMAIN}" \
+                        -e PORT="${PORT}" \
                         ${IMAGE_NAME}:${IMAGE_TAG}
                 '''
             }
         }
     }
 
-    post { always { cleanWs() } }
+    post {
+        always {
+            echo "🧽 Cleaning workspace..."
+            cleanWs()
+        }
+    }
 }

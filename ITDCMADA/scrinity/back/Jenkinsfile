@@ -10,29 +10,19 @@ pipeline {
         EMAIL_USER = 'thaniafam2006@gmail.com'
         EMAIL_PASS = 'rnwe jwpb flee ttsz'
         MINIO_ENDPOINT = credentials('MINIO_ENDPOINT_ID')
-
         MINIO_PORT = credentials('MINIO_PORT_ID')
-
         MINIO_BUCKET = 'scrinity'
-
         MINIO_ROOT_USER = credentials('MINIO_ACCESS_KEY_ID')
-
         MINIO_ROOT_PASSWORD = credentials('MINIO_SECRET_KEY_ID')
 
         CLERK_PUBLISHABLE_KEY = 'pk_test_cHJvdmVuLWNvbGxpZS0yMS5jbGVyay5hY2NvdW50cy5kZXYk'
-
         CLERK_SECRET_KEY = 'sk_test_6jcshAlOLgYmgzLpBPhVD0n6pn8QBctbt8UA4ipQHB'
-
         CLERK_ISSUER = 'https://proven-collie-21.clerk.accounts.dev'
-
         CLERK_JWKS_URL = "${CLERK_ISSUER}/.well-known/jwks.json"
 
         DB_HOST = credentials('DB_HOST_ID')
-
         DB_PASSWORD = credentials('DB_PASSWORD_ID')
-
         DB_PORT = credentials('DB_PORT_ID')
-
         DB_USER = credentials('DB_USER_ID')
         DATABASE_URL = "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/scrinity"
     }
@@ -41,34 +31,23 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
+                    set -e
                     echo "Building image ${IMAGE_NAME}:${IMAGE_TAG}"
+
                     docker build \
-
-                        --build-arg EMAIL_USER=${EMAIL_USER} \
-
-                        --build-arg EMAIL_PASS=${EMAIL_PASS} \
-
-                        --build-arg MINIO_ENDPOINT=${MINIO_ENDPOINT} \
-
-                        --build-arg MINIO_PORT=${MINIO_PORT} \
-
-                        --build-arg MINIO_BUCKET=${MINIO_BUCKET} \
-
-                        --build-arg MINIO_ROOT_USER=${MINIO_ROOT_USER} \
-
-                        --build-arg MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD} \
-
-                        --build-arg CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY} \
-
-                        --build-arg CLERK_SECRET_KEY=${CLERK_SECRET_KEY} \
-
-                        --build-arg CLERK_ISSUER=${CLERK_ISSUER} \
-
-                        --build-arg CLERK_JWKS_URL=${CLERK_JWKS_URL} \
-
-                        --build-arg DATABASE_URL=${DATABASE_URL} \
-
-                        --build-arg PORT=${PORT} \
+                        --build-arg EMAIL_USER="${EMAIL_USER}" \
+                        --build-arg EMAIL_PASS="${EMAIL_PASS}" \
+                        --build-arg MINIO_ENDPOINT="${MINIO_ENDPOINT}" \
+                        --build-arg MINIO_PORT="${MINIO_PORT}" \
+                        --build-arg MINIO_BUCKET="${MINIO_BUCKET}" \
+                        --build-arg MINIO_ROOT_USER="${MINIO_ROOT_USER}" \
+                        --build-arg MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD}" \
+                        --build-arg CLERK_PUBLISHABLE_KEY="${CLERK_PUBLISHABLE_KEY}" \
+                        --build-arg CLERK_SECRET_KEY="${CLERK_SECRET_KEY}" \
+                        --build-arg CLERK_ISSUER="${CLERK_ISSUER}" \
+                        --build-arg CLERK_JWKS_URL="${CLERK_JWKS_URL}" \
+                        --build-arg DATABASE_URL="${DATABASE_URL}" \
+                        --build-arg PORT="${PORT}" \
                         -t ${IMAGE_NAME}:${IMAGE_TAG} .
                 '''
             }
@@ -77,6 +56,7 @@ pipeline {
         stage('Deploy Container') {
             steps {
                 sh '''
+                    set -e
                     echo "Stopping old container if exists"
                     docker rm -f ${CONTAINER_NAME} || true
 
@@ -85,32 +65,19 @@ pipeline {
                         --name ${CONTAINER_NAME} \
                         -p ${PORT}:${PORT} \
                         --restart unless-stopped \
-
-                        -e EMAIL_USER=${EMAIL_USER} \
-
-                        -e EMAIL_PASS=${EMAIL_PASS} \
-
-                        -e MINIO_ENDPOINT=${MINIO_ENDPOINT} \
-
-                        -e MINIO_PORT=${MINIO_PORT} \
-
-                        -e MINIO_BUCKET=${MINIO_BUCKET} \
-
-                        -e MINIO_ROOT_USER=${MINIO_ROOT_USER} \
-
-                        -e MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD} \
-
-                        -e CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY} \
-
-                        -e CLERK_SECRET_KEY=${CLERK_SECRET_KEY} \
-
-                        -e CLERK_ISSUER=${CLERK_ISSUER} \
-
-                        -e CLERK_JWKS_URL=${CLERK_JWKS_URL} \
-                        
-                        -e DATABASE_URL=${DATABASE_URL} \
-
-                        -e PORT=${PORT} \
+                        -e EMAIL_USER="${EMAIL_USER}" \
+                        -e EMAIL_PASS="${EMAIL_PASS}" \
+                        -e MINIO_ENDPOINT="${MINIO_ENDPOINT}" \
+                        -e MINIO_PORT="${MINIO_PORT}" \
+                        -e MINIO_BUCKET="${MINIO_BUCKET}" \
+                        -e MINIO_ROOT_USER="${MINIO_ROOT_USER}" \
+                        -e MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD}" \
+                        -e CLERK_PUBLISHABLE_KEY="${CLERK_PUBLISHABLE_KEY}" \
+                        -e CLERK_SECRET_KEY="${CLERK_SECRET_KEY}" \
+                        -e CLERK_ISSUER="${CLERK_ISSUER}" \
+                        -e CLERK_JWKS_URL="${CLERK_JWKS_URL}" \
+                        -e DATABASE_URL="${DATABASE_URL}" \
+                        -e PORT="${PORT}" \
                         ${IMAGE_NAME}:${IMAGE_TAG}
                 '''
             }
