@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servicecontroledelegalite
+  namespace: ${NAMESPACE}
+  labels:
+    app: servicecontroledelegalite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: servicecontroledelegalite
+  template:
+    metadata:
+      labels:
+        app: servicecontroledelegalite
+    spec:
+      containers:
+        - name: servicecontroledelegalite
+          image: ${FULL_IMAGE_NAME}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5043
+              name: http
+          envFrom:
+            - secretRef:
+                name: servicecontroledelegalite-secret
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /servicecontroledelegalite
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /servicecontroledelegalite
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      imagePullSecrets:
+        - name: harbor-registry-secret
