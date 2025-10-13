@@ -17,7 +17,7 @@ pipeline {
         SMTP_PORT      = '587'
         SENDER_EMAIL   = 'rabemalalasarobidyravakiniaina@gmail.com'
         SENDER_PASSWORD= 'ypehpikvjnoigxwq'
-        OPENAI_API_KEY = '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'
+        OPENAI_API_KEY = credentials('OPENAI_API_KEY_ID')
 }
 
 
