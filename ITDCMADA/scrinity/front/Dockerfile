@@ -1,40 +1,54 @@
-###########################################################################
-# �TAPE 1 � Build Vite
-###########################################################################
-FROM node:20-slim AS builder
+
+# ---- Étape 1 : Build ----
+FROM node:22-alpine AS builder
+
+RUN apk add --no-cache libc6-compat
+
 WORKDIR /app
 
+# Copier uniquement ce qui sert à installer les deps
 COPY package*.json ./
-RUN npm ci --ignore-scripts && npm cache clean --force
+COPY tsconfig.json ./
+COPY next.config.mjs ./
 
+# Installer toutes les dépendances (y compris dev pour le build)
+RUN npm install --frozen-lockfile
+
+# Copier le reste du code
 COPY . .
-
-ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-ARG CLERK_SECRET_KEY
-ARG NEXT_PUBLIC_BACKEND_URL
+ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_APP_DOMAIN
-ARG PORT=3144
+ARG CLERK_SECRET_KEY
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 
-ENV \
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY} \
-  CLERK_SECRET_KEY=${CLERK_SECRET_KEY} \
-  NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL} \
-  NEXT_PUBLIC_APP_DOMAIN=${NEXT_PUBLIC_APP_DOMAIN} \
-  PORT=${PORT}
-
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_APP_DOMAIN=${NEXT_PUBLIC_APP_DOMAIN}
+ENV CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+ENV PORT=3144
+# Build Next.js (production-ready)
 RUN npm run build
 
-###########################################################################
-# �TAPE 2 � Image Nginx (non-root)
-###########################################################################
-FROM nginxinc/nginx-unprivileged:1.25-alpine AS runner
-USER 101
-WORKDIR /usr/share/nginx/html
+# ---- Étape 2 : Production ----
+FROM node:22-alpine AS runner
 
-COPY --from=builder --chown=101:101 /app/dist .
+WORKDIR /app
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-ENV PORT=${PORT}
+ENV NODE_ENV=production
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_APP_DOMAIN=${NEXT_PUBLIC_APP_DOMAIN}
+ENV CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+ENV PORT=3144
+
+# Copier uniquement ce qui est utile pour exécuter en prod
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/next.config.mjs ./
+
 EXPOSE 3144
 
-CMD ["nginx","-g","daemon off;"]
+# Lancer Next.js en mode production
+CMD ["npm", "run", "start"]
