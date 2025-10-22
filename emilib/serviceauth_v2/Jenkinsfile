@@ -1,0 +1,95 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'serviceauth-v2-image'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        CONTAINER_NAME = 'serviceauth-v2-container'
+
+        PORT = '9098'
+        DATABASE_HOST = credentials('POSTGRES_HOST_ID')
+        DATABASE_PORT = credentials('POSTGRES_PORT_ID')
+        DATABASE_USERNAME = credentials('POSTGRES_USER_ID')
+        DATABASE_PASSWORD = credentials('POSTGRES_PASSWORD_ID')
+        DATABASE_NAME = 'serviceauth-v2'
+        JWT_SECRET = 'ad1095c902199560616a9db1454a6e71'
+        API_URL = credentials('API_URL_SCOLARITE_ID')
+        MAIL_HOST = credentials('MAIL_HOST_ID')
+        MAIL_PORT = credentials('MAIL_PORT_ID')
+        MAIL_USERNAME = credentials('MAIL_USERNAME_ID')
+        MAIL_PASSWORD = credentials('MAIL_PASSWORD_ID')
+        MAIL_SSL_TRUST = credentials('MAIL_SSL_TRUST_ID')
+    }
+
+    stages {
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building the Docker image with environment variables...'
+                    sh """
+                    docker build \
+                        --build-arg PORT=${PORT} \
+                        --build-arg DATABASE_HOST=${DATABASE_HOST} \
+                        --build-arg DATABASE_PORT=${DATABASE_PORT} \
+                        --build-arg DATABASE_USERNAME=${DATABASE_USERNAME} \
+                        --build-arg DATABASE_PASSWORD=${DATABASE_PASSWORD} \
+                        --build-arg DATABASE_NAME=${DATABASE_NAME} \
+                        --build-arg JWT_SECRET=${JWT_SECRET} \
+                        --build-arg API_URL=${API_URL} \
+                        --build-arg MAIL_HOST=${MAIL_HOST} \
+                        --build-arg MAIL_PORT=${MAIL_PORT} \
+                        --build-arg MAIL_USERNAME=${MAIL_USERNAME} \
+                        --build-arg MAIL_PASSWORD=${MAIL_PASSWORD} \
+                        --build-arg MAIL_SSL_TRUST=${MAIL_SSL_TRUST} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    """
+                }
+            }
+        }
+
+        stage('Deploy Containers') {
+            steps {
+                script {
+                    echo 'Checking if the container is already running...'
+                    sh '''
+                    if [ "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
+                        echo "Stopping and removing existing container..."
+                        docker stop ${CONTAINER_NAME}
+                        docker rm ${CONTAINER_NAME}
+                    fi
+                    '''
+
+                    echo 'Running the Docker container with environment variables...'
+                    sh '''
+                    docker run -d --name ${CONTAINER_NAME} \
+                        -p ${PORT}:${PORT} \
+                        -e PORT=${PORT} \
+                        -e DATABASE_HOST=${DATABASE_HOST} \
+                        -e DATABASE_PORT=${DATABASE_PORT} \
+                        -e DATABASE_USERNAME=${DATABASE_USERNAME} \
+                        -e DATABASE_PASSWORD=${DATABASE_PASSWORD} \
+                        -e DATABASE_NAME=${DATABASE_NAME} \
+                        -e JWT_SECRET=${JWT_SECRET} \
+                        -e API_URL=${API_URL} \
+                        -e MAIL_HOST=${MAIL_HOST} \
+                        -e MAIL_PORT=${MAIL_PORT} \
+                        -e MAIL_USERNAME=${MAIL_USERNAME} \
+                        -e MAIL_PASSWORD=${MAIL_PASSWORD} \
+                        -e MAIL_SSL_TRUST=${MAIL_SSL_TRUST} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo 'Cleaning workspace...'
+                cleanWs()
+            }
+        }
+    }
+}
