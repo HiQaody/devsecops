@@ -1,0 +1,90 @@
+pipeline {
+    agent any
+
+    environment {
+        CONTAINER_NAME = 'mtm-backend'
+        IMAGE_NAME     = 'mtm-backend'
+        IMAGE_TAG      = "${BUILD_NUMBER}"
+        PORT           = '3146'
+        FRONT_URL      = 'https://mtm.itdcmada.com,http://localhost:3000'
+        POSTGRES_SERVER        = credentials('DB_HOST_ID')
+        POSTGRES_USER        = credentials('DB_USER_ID')
+        POSTGRES_DB        = 'mtm'
+        POSTGRES_PORT        = credentials('DB_PORT_ID')
+        POSTGRES_PASSWORD        = credentials('DB_PASSWORD_ID')
+
+        SECRET_KEY    = credentials('MTM_SECRET_KEY_ID')
+        ACCESS_TOKEN_EXPIRE_MINUTES = '60'
+
+        MINIO_ENDPOINT = credentials('MINIO_ENDPOINT_ID')
+        MINIO_ACCESS_KEY = credentials('MINIO_ACCESS_KEY_ID')
+        MINIO_SECRET_KEY = credentials('MINIO_SECRET_KEY_ID')
+        MINIO_BUCKET = 'mtm'
+        TINIFY_API_KEY = credentials('TINIFY_API_KEY_ID')
+
+
+}
+
+
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    echo "➡️ Building image ${IMAGE_NAME}:${IMAGE_TAG}"
+                    docker build \
+                        --build-arg FRONT_URL=${FRONT_URL} \
+                        --build-arg PORT=${PORT} \
+                        --build-arg POSTGRES_SERVER=${POSTGRES_SERVER} \
+                        --build-arg POSTGRES_USER=${POSTGRES_USER} \
+                        --build-arg POSTGRES_DB=${POSTGRES_DB} \
+                        --build-arg POSTGRES_PORT=${POSTGRES_PORT} \
+                        --build-arg POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+                        --build-arg SECRET_KEY=${SECRET_KEY} \
+                        --build-arg ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES} \
+                        --build-arg MINIO_ENDPOINT=${MINIO_ENDPOINT} \
+                        --build-arg MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY} \
+                        --build-arg MINIO_SECRET_KEY=${MINIO_SECRET_KEY} \
+                        --build-arg MINIO_BUCKET=${MINIO_BUCKET} \
+                        --build-arg TINIFY_API_KEY=${TINIFY_API_KEY} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                '''
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh '''
+                    echo "➡️ Stopping old container if exists"
+                    docker rm -f ${CONTAINER_NAME} || true
+
+                    echo "➡️ Running new container"
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p ${PORT}:${PORT} \
+                        --restart unless-stopped \
+                        -e FRONT_URL=${FRONT_URL} \
+                        -e PORT=${PORT} \
+                        -e POSTGRES_SERVER=${POSTGRES_SERVER} \
+                        -e POSTGRES_USER=${POSTGRES_USER} \
+                        -e POSTGRES_DB=${POSTGRES_DB} \
+                        -e POSTGRES_PORT=${POSTGRES_PORT} \
+                        -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+                        -e SECRET_KEY=${SECRET_KEY} \
+                        -e ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES} \
+                        -e MINIO_ENDPOINT=${MINIO_ENDPOINT} \
+                        -e MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY} \
+                        -e MINIO_SECRET_KEY=${MINIO_SECRET_KEY} \
+                        -e MINIO_BUCKET=${MINIO_BUCKET} \
+                        -e TINIFY_API_KEY=${TINIFY_API_KEY} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
