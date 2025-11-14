@@ -1,0 +1,104 @@
+pipeline {
+    agent any
+
+    environment {
+        CONTAINER_NAME = 'ecat-backend'
+        IMAGE_NAME     = 'ecat-backend'
+        IMAGE_TAG      = "${BUILD_NUMBER}"
+        PORT           = '3148'
+        FRONT_URL      = 'https://ecat.itdcmada.com,http://localhost:3000'
+        DB_USER        = credentials('POSTGRES_USER_ID')
+        DB_PASS        = credentials('POSTGRES_PASSWORD_ID')
+        DB_NAME        = 'ecat'
+        DB_HOST        = credentials('DB_HOST_ID')
+        DB_PORT        = credentials('DB_PORT_ID')
+        SECRET_KEY     = credentials('SECRET_KEY_ID')
+        DATABASE_URL   = "postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+        ADMIN_EMAIL     = 'admin.ecat@itdcmada.com'
+        ADMIN_PASSWORD  = 'Adm!nEcta#'
+        DEBUG           = 'True'
+        OLD_IMAGE_TAG   = ''
+    }
+
+    stages {
+        stage('Get Previous Image Tag') {
+            steps {
+                script {
+                    // On récupère le dernier tag déployé (stocké où ? À adapter selon vos process)
+                    def output = sh(script: "docker ps -a --format '{{.Image}}' | grep '${IMAGE_NAME}:' | head -1 | awk -F':' '{print \$2}'", returnStdout: true).trim()
+                    env.OLD_IMAGE_TAG = output ?: ''
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                    echo "➡️ Building image ${IMAGE_NAME}:${IMAGE_TAG}"
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} \\
+                        --build-arg FRONT_URL="${FRONT_URL}" \\
+                        --build-arg PORT="${PORT}" \\
+                        --build-arg SECRET_KEY="${SECRET_KEY}" \\
+                        --build-arg DATABASE_URL="${DATABASE_URL}" \\
+                        --build-arg ADMIN_EMAIL="${ADMIN_EMAIL}" \\
+                        --build-arg ADMIN_PASSWORD="${ADMIN_PASSWORD}" \\
+                        --build-arg DEBUG="${DEBUG}" \\
+                        .
+                """
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh """
+                    echo "➡️ Stopping old container if exists"
+                    docker rm -f ${CONTAINER_NAME} || true
+
+                    echo "➡️ Running new container"
+                    docker run -d \\
+                        --name ${CONTAINER_NAME} \\
+                        -p ${PORT}:${PORT} \\
+                        --restart unless-stopped \\
+                        -e FRONT_URL="${FRONT_URL}" \\
+                        -e PORT="${PORT}" \\
+                        -e DATABASE_URL="${DATABASE_URL}" \\
+                        -e SECRET_KEY="${SECRET_KEY}" \\
+                        -e ADMIN_EMAIL="${ADMIN_EMAIL}" \\
+                        -e ADMIN_PASSWORD="${ADMIN_PASSWORD}" \\
+                        -e DEBUG="${DEBUG}" \\
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                """
+            }
+        }
+    }
+
+    post {
+        failure {
+            script {
+                if (env.OLD_IMAGE_TAG) {
+                    echo "⏪ Rollback: redeployment de l'image précédente : ${IMAGE_NAME}:${env.OLD_IMAGE_TAG}"
+                    sh """
+                        docker rm -f ${CONTAINER_NAME} || true
+                        docker run -d \\
+                            --name ${CONTAINER_NAME} \\
+                            -p ${PORT}:${PORT} \\
+                            --restart unless-stopped \\
+                            -e FRONT_URL="${FRONT_URL}" \\
+                            -e PORT="${PORT}" \\
+                            -e DATABASE_URL="${DATABASE_URL}" \\
+                            -e SECRET_KEY="${SECRET_KEY}" \\
+                            -e ADMIN_EMAIL="${ADMIN_EMAIL}" \\
+                            -e ADMIN_PASSWORD="${ADMIN_PASSWORD}" \\
+                            -e DEBUG="${DEBUG}" \\
+                            ${IMAGE_NAME}:${env.OLD_IMAGE_TAG}
+                    """
+                } else {
+                    echo "⛔️ Aucun tag précédent trouvé pour rollback."
+                }
+            }
+        }
+        always {
+            cleanWs()
+        }
+    }
+}
