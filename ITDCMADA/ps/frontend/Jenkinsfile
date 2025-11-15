@@ -1,0 +1,122 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = 'madacare-backend'
+        DOCKER_TAG = "${BUILD_NUMBER}"
+        DOCKER_CONTAINER = 'madacare-backend'
+        DOCKER_OLD = "old-madacare-backend"
+
+        DB_TYPE = 'postgres'
+        POSTGRES_HOST = credentials('DB_HOST_ID')
+        POSTGRES_PORT = credentials('DB_PORT_ID')
+        POSTGRES_USER = credentials('POSTGRES_USER_ID')
+        POSTGRES_PASSWORD = credentials('POSTGRES_PASSWORD_ID')
+        POSTGRES_DB = 'madacare'
+
+        JWT_SECRET = credentials('JWT_SECRET_ID')
+        JWT_REFRESH_SECRET = credentials('JWT_REFRESH_SECRET_ID')
+        JWT_EXPIRES_IN = '1h'
+
+        MINIO_ENDPOINT = credentials('MINIO_ENDPOINT_ID')
+        MINIO_PORT = credentials('MINIO_PORT_ID')
+        MINIO_ACCESS_KEY = credentials('MINIO_ACCESS_KEY_ID')
+        MINIO_SECRET_KEY = credentials('MINIO_SECRET_KEY_ID')
+        MINIO_BUCKET_NAME = "${POSTGRES_DB}"
+
+        NODE_ENV = 'production'
+        BASE_URL = 'https://madacare-api.itdcmada.com'
+        SUPER_ADMIN_EMAIL = "superadmin@madacare.com"
+        SUPER_ADMIN_PASSWORD = "SuperAdiMn!@#"
+        PORT = '3150'
+    }
+
+    stages {
+
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                docker build --build-arg DB_TYPE=${DB_TYPE} \
+                --build-arg POSTGRES_HOST=${POSTGRES_HOST} \
+                --build-arg POSTGRES_PORT=${POSTGRES_PORT} \
+                --build-arg POSTGRES_USER=${POSTGRES_USER} \
+                --build-arg POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+                --build-arg POSTGRES_DB=${POSTGRES_DB} \
+                --build-arg JWT_SECRET=${JWT_SECRET} \
+                --build-arg JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET} \
+                --build-arg JWT_EXPIRES_IN=${JWT_EXPIRES_IN} \
+                --build-arg MINIO_ENDPOINT=${MINIO_ENDPOINT} \
+                --build-arg MINIO_PORT=${MINIO_PORT} \
+                --build-arg MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY} \
+                --build-arg MINIO_SECRET_KEY=${MINIO_SECRET_KEY} \
+                --build-arg MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME} \
+                --build-arg NODE_ENV=${NODE_ENV} \
+                --build-arg BASE_URL=${BASE_URL} \
+                --build-arg SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL} \
+                --build-arg SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD} \
+                --build-arg PORT=${PORT} \
+                -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                """
+            }
+        }
+
+        stage('Deploy with Rollback') {
+            steps {
+                script {
+
+                    // 1. Sauvegarder l'ancien conteneur
+                    sh """
+                    if docker ps -a --format '{{.Names}}' | grep -w ${DOCKER_CONTAINER}; then
+                        echo "Saving current container as backup..."
+                        docker rename ${DOCKER_CONTAINER} ${DOCKER_OLD}
+                    fi
+                    """
+
+                    // 2. Lancer le nouveau conteneur
+                    sh """
+                    docker run -d --name ${DOCKER_CONTAINER} -p ${PORT}:${PORT} ${DOCKER_IMAGE}:${DOCKER_TAG}
+                    """
+
+                    // 3. Vérifier qu'il fonctionne (test health-check API)
+                    def status = sh (
+                        script: "sleep 5 && curl -s -o /dev/null -w '%{http_code}' http://localhost:${PORT}/",
+                        returnStdout: true
+                    ).trim()
+
+                    if (status != "200") {
+                        error("❌ Nouveau conteneur invalide, rollback en cours...")
+                    }
+
+                    // 4. Supprimer ancien si tout est OK
+                    sh """
+                    if docker ps -a --format '{{.Names}}' | grep -w ${DOCKER_OLD}; then
+                        docker rm -f ${DOCKER_OLD}
+                    fi
+                    """
+
+                }
+            }
+            post {
+                failure {
+                    script {
+                        // 5. Rollback automatique
+                        sh """
+                        echo "Rollback: restauration de l'ancien conteneur..."
+                        docker rm -f ${DOCKER_CONTAINER} || true
+                        if docker ps -a --format '{{.Names}}' | grep -w ${DOCKER_OLD}; then
+                            docker rename ${DOCKER_OLD} ${DOCKER_CONTAINER}
+                            docker start ${DOCKER_CONTAINER}
+                        fi
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh "docker rmi ${DOCKER_IMAGE}:${DOCKER_TAG} || true"
+        }
+    }
+}

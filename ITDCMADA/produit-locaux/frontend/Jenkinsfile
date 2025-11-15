@@ -1,0 +1,86 @@
+pipeline {
+    agent any
+
+    environment {
+        // Variables constantes
+        APP_NAME = 'produit-locaux-front'
+        API_URL = 'https://produit-locaux-api.itdcmada.com'
+
+        // Variables Docker
+        CONTAINER_NAME = "${APP_NAME}"
+        DOCKER_OLD     = "old-${APP_NAME}"
+        IMAGE_NAME     = "${APP_NAME}"
+        IMAGE_TAG      = "${BUILD_NUMBER}"
+
+        // App config
+        PORT = '3155'
+        VITE_API_URL = "${API_URL}"
+        VITE_SOCKET_SERVER_URL = "${API_URL}"
+    }
+
+    stages {
+
+        stage('Build Docker Image') {
+            steps {
+                sh """#!/bin/bash
+                    echo "🛠️ Build de l'image Docker..."
+
+                    docker build \
+                      --build-arg VITE_API_URL=${VITE_API_URL} \
+                      --build-arg VITE_SOCKET_SERVER_URL=${VITE_SOCKET_SERVER_URL} \
+                      --build-arg PORT=${PORT} \
+                      -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                """
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh """#!/bin/bash
+                    echo "🧹 Suppression de l'ancien conteneur..."
+
+                    docker rm -f ${CONTAINER_NAME} || true
+
+                    echo "🚀 Démarrage du nouveau conteneur..."
+
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p ${PORT}:${PORT} \
+                        --restart unless-stopped \
+                        -e VITE_API_URL=${VITE_API_URL} \
+                        -e VITE_SOCKET_SERVER_URL=${VITE_SOCKET_SERVER_URL} \
+                        -e PORT=${PORT} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                """
+            }
+        }
+
+        stage('Rollback') {
+            when {
+                expression { currentBuild.result == 'FAILURE' }
+            }
+            steps {
+                sh """#!/bin/bash
+                    echo "↩️ Rollback au précédent conteneur..."
+
+                    docker rm -f ${CONTAINER_NAME} || true
+
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p ${PORT}:${PORT} \
+                        --restart unless-stopped \
+                        -e VITE_API_URL=${VITE_API_URL} \
+                        -e VITE_SOCKET_SERVER_URL=${VITE_SOCKET_SERVER_URL} \
+                        -e PORT=${PORT} \
+                        ${IMAGE_NAME}:${PREVIOUS_IMAGE_TAG}
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
