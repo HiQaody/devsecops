@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicesuggestion-service
+  namespace: pnud-agvm
+spec:
+  type: NodePort
+  selector:
+    app: servicesuggestion
+  ports:
+    - protocol: TCP
+      port: 5009
+      targetPort: 5009
+      nodePort: 30019
