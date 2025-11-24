@@ -2,10 +2,10 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'madacare-backend'
+        DOCKER_IMAGE = 'madacare-api'
         DOCKER_TAG = "${BUILD_NUMBER}"
-        DOCKER_CONTAINER = 'madacare-backend'
-        DOCKER_OLD = "old-madacare-backend"
+        DOCKER_CONTAINER = 'madacare-api'
+        DOCKER_OLD = "old-madacare-api"
 
         DB_TYPE = 'postgres'
         POSTGRES_HOST = credentials('DB_HOST_ID')
@@ -26,8 +26,23 @@ pipeline {
 
         NODE_ENV = 'production'
         BASE_URL = 'https://madacare-api.itdcmada.com'
-        SUPER_ADMIN_EMAIL = "superadmin@madacare.com"
-        SUPER_ADMIN_PASSWORD = "SuperAdiMn!@#"
+        // Super Admin Configuration (seed)
+        SUPER_ADMIN_EMAIL = 'superadmin@madacare.com'
+        SUPER_ADMIN_PASSWORD = 'SuperAdiMn!@#'
+        SUPER_ADMIN_PHONE = '1234567890'
+        SUPER_ADMIN_FIRST_NAME = 'Super'
+        SUPER_ADMIN_LAST_NAME = 'Admin'
+        SUPER_ADMIN_GENDER = 'male'
+        SUPER_ADMIN_BIRTH_DATE = '1990-01-01'
+        SUPER_ADMIN_AVATAR = 'https://madacare-api.itdcmada.com/avatar/superadmin.jpg'
+
+        // Mailer Configuration
+        MAILER_HOST=credentials('MAILER_HOST_ID')
+        MAILER_PORT=credentials('MAILER_PORT_ID')
+        MAILER_USER=credentials('MAILER_USER_ID')
+        MAILER_PASS=credentials('MAILER_PASS_ID')
+        MAILER_FROM="No Reply itdcmada.com"
+
         PORT = '3150'
     }
 
@@ -54,6 +69,17 @@ pipeline {
                 --build-arg BASE_URL=${BASE_URL} \
                 --build-arg SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL} \
                 --build-arg SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD} \
+                --build-arg SUPER_ADMIN_PHONE=${SUPER_ADMIN_PHONE} \
+                --build-arg SUPER_ADMIN_FIRST_NAME=${SUPER_ADMIN_FIRST_NAME} \
+                --build-arg SUPER_ADMIN_LAST_NAME=${SUPER_ADMIN_LAST_NAME} \
+                --build-arg SUPER_ADMIN_GENDER=${SUPER_ADMIN_GENDER} \
+                --build-arg SUPER_ADMIN_BIRTH_DATE=${SUPER_ADMIN_BIRTH_DATE} \
+                --build-arg SUPER_ADMIN_AVATAR=${SUPER_ADMIN_AVATAR} \
+                --build-arg MAILER_HOST=${MAILER_HOST} \
+                --build-arg MAILER_PORT=${MAILER_PORT} \
+                --build-arg MAILER_USER=${MAILER_USER} \
+                --build-arg MAILER_PASS=${MAILER_PASS} \
+                --build-arg MAILER_FROM=${MAILER_FROM} \
                 --build-arg PORT=${PORT} \
                 -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
                 """
