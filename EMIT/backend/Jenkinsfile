@@ -1,0 +1,106 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'api-site-dev'
+        IMAGE_TAG = 'latest'
+        CONTAINER_NAME = 'api-site-dev-container'
+
+        PORT = '9194'
+        JWT_SECRET = 'nestjsbackend'
+        JWT_EXPIRES = '1y'
+        CORS_ORIGIN = 'http://localhost:4000,http://localhost:3000,http://localhost:4001,http://localhost:4002,https://admin-site.emit.mg,https://site.emit.mg,http://185.209.230.55:4013/,http://185.209.230.55:4003/'
+        BASE_URL_UNIV = 'http://185.209.230.55/univ-scolarite'
+        POSTGRES_DB = 'emit-base-dev'
+        POSTGRES_HOST = credentials('IP_SERVER_ID')
+        POSTGRES_USER = credentials('POSTGRES_USER_ID')
+        POSTGRES_PASSWORD = credentials('POSTGRES_PASSWORD_ID')
+        MINIO_ENDPOINT = credentials('MINIO_ENDPOINT_ID')
+        MINIO_ACCESS_KEY = credentials('MINIO_ACCESS_KEY_ID')
+        MINIO_SECRET_KEY = credentials('MINIO_SECRET_KEY_ID')
+        MEILISEARCH_HOST = credentials('MEILI_HOST_ID')
+        MEILISEARCH_API_KEY = credentials('MEILI_API_KEY')
+        MINIO_PORT = '9000'
+        MINIO_SSL= 'false'
+        MINIO_BUCKET = 'emit'
+    }
+
+    stages {
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building the Docker image with environment variables...'
+                    sh """
+                    docker build \
+                        --build-arg POSTGRES_HOST=${POSTGRES_HOST} \
+                        --build-arg POSTGRES_USER=${POSTGRES_USER} \
+                        --build-arg POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+                        --build-arg POSTGRES_DB=${POSTGRES_DB} \
+                        --build-arg PORT=${PORT} \
+                        --build-arg JWT_SECRET=${JWT_SECRET} \
+                        --build-arg JWT_EXPIRES=${JWT_EXPIRES} \
+                        --build-arg CORS_ORIGIN=${CORS_ORIGIN} \
+                        --build-arg MINIO_ENDPOINT=${MINIO_ENDPOINT} \
+                        --build-arg MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY} \
+                        --build-arg MINIO_SECRET_KEY=${MINIO_SECRET_KEY} \
+                        --build-arg MINIO_PORT=${MINIO_PORT} \
+                        --build-arg MINIO_SSL=${MINIO_SSL} \
+                        --build-arg MEILISEARCH_HOST=${MEILISEARCH_HOST} \
+                        --build-arg MEILISEARCH_API_KEY=${MEILISEARCH_API_KEY} \
+                        --build-arg MINIO_BUCKET=${MINIO_BUCKET} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} -f Dockerfile.dev .
+                    """
+                }
+            }
+        }
+
+
+        stage('Deploy Containers') {
+            steps {
+                script {
+                    echo 'Checking if the container is already running...'
+                    sh '''
+                    if [ "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
+                        echo "Stopping and removing existing container..."
+                        docker stop ${CONTAINER_NAME}
+                        docker rm ${CONTAINER_NAME}
+                    fi
+                    '''
+
+                    echo 'Running the Docker container with environment variables...'
+                    sh '''
+                    docker run -d --name ${CONTAINER_NAME} \
+                        -e POSTGRES_HOST=${POSTGRES_HOST} \
+                        -e POSTGRES_USER=${POSTGRES_USER} \
+                        -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+                        -e POSTGRES_DB=${POSTGRES_DB} \
+                        -e PORT=${PORT} \
+                        -e JWT_SECRET=${JWT_SECRET} \
+                        -e JWT_EXPIRES=${JWT_EXPIRES} \
+                        -e CORS_ORIGIN=${CORS_ORIGIN} \
+                        -e MINIO_ENDPOINT=${MINIO_ENDPOINT} \
+                        -e MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY} \
+                        -e MINIO_SECRET_KEY=${MINIO_SECRET_KEY} \
+                        -e MINIO_PORT=${MINIO_PORT} \
+                        -e MINIO_SSL=${MINIO_SSL} \
+                        -e MINIO_BUCKET=${MINIO_BUCKET} \
+                        -e MEILISEARCH_HOST=${MEILISEARCH_HOST} \
+                        -e MEILISEARCH_API_KEY=${MEILISEARCH_API_KEY} \
+                        -p ${PORT}:${PORT} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo 'Cleaning workspace...'
+                cleanWs()
+            }
+        }
+    }
+}
