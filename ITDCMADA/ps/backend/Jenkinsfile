@@ -2,32 +2,33 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'ps-backend'
+        DOCKER_IMAGE = 'ps-api'
         DOCKER_TAG = "${BUILD_NUMBER}"
-        DOCKER_CONTAINER = 'ps-backend'
-        DOCKER_OLD = "old-ps-backend"
+        DOCKER_CONTAINER = 'ps-api'
+        DOCKER_OLD = "old-ps-api"
 
         DB_TYPE = 'postgres'
-        POSTGRES_HOST = credentials('DB_HOST_ID')
-        POSTGRES_PORT = credentials('DB_PORT_ID')
-        POSTGRES_USER = credentials('POSTGRES_USER_ID')
-        POSTGRES_PASSWORD = credentials('POSTGRES_PASSWORD_ID')
-        POSTGRES_DB = 'ps'
+        DB_HOST = credentials('DB_HOST_ID')
+        DB_PORT = credentials('DB_PORT_ID')
+        DB_USER = credentials('POSTGRES_USER_ID')
+        DB_NAME = credentials('POSTGRES_PASSWORD_ID')
+        DB_NAME = 'ps'
 
         JWT_SECRET = credentials('JWT_SECRET_ID')
-        JWT_REFRESH_SECRET = credentials('JWT_REFRESH_SECRET_ID')
         JWT_EXPIRES_IN = '1h'
+        JWT_REFRESH_SECRET = credentials('JWT_REFRESH_SECRET_ID')
+        JWT_REFRESH_EXPIRES_IN = '1h'
+        CORS_ORIGIN = 'http://localhost:5173,https://ps-api.itdcmada.com,https://ps.itdcmada.com'
+        DEBUG = 'false'
+        UPLOAD_MAX_SIZE_MB = '100'
+        UPLOAD_DIR = 'uploads'
+        TYPEORM_LOGGING = 'true'
+        RATE_TTL = '60'
+        RATE_LIMIT = '30'
+        DB_LOGGING = 'false'
+        BACKEND_PROTOCOL = 'https'
+        FRONTEND_ORIGIN = 'http://localhost:5173,https://ps-api.itdcmada.com,https://ps.itdcmada.com'
 
-        MINIO_ENDPOINT = credentials('MINIO_ENDPOINT_ID')
-        MINIO_PORT = credentials('MINIO_PORT_ID')
-        MINIO_ACCESS_KEY = credentials('MINIO_ACCESS_KEY_ID')
-        MINIO_SECRET_KEY = credentials('MINIO_SECRET_KEY_ID')
-        MINIO_BUCKET_NAME = "${POSTGRES_DB}"
-
-        NODE_ENV = 'production'
-        BASE_URL = 'https://ps-api.itdcmada.com'
-        SUPER_ADMIN_EMAIL = 'superadmin@ps.com'
-        SUPER_ADMIN_PASSWORD = 'Sup3rAdm!n!@#'
         PORT = '3152'
     }
 
@@ -37,23 +38,24 @@ pipeline {
             steps {
                 sh """
                 docker build --build-arg DB_TYPE=${DB_TYPE} \
-                --build-arg POSTGRES_HOST=${POSTGRES_HOST} \
-                --build-arg POSTGRES_PORT=${POSTGRES_PORT} \
-                --build-arg POSTGRES_USER=${POSTGRES_USER} \
-                --build-arg POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
-                --build-arg POSTGRES_DB=${POSTGRES_DB} \
+                --build-arg DB_HOST=${DB_HOST} \
+                --build-arg DB_PORT=${DB_PORT} \
+                --build-arg DB_USER=${DB_USER} \
+                --build-arg DB_PASS=${DB_PASS} \
+                --build-arg DB_NAME=${DB_NAME} \
                 --build-arg JWT_SECRET=${JWT_SECRET} \
                 --build-arg JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET} \
                 --build-arg JWT_EXPIRES_IN=${JWT_EXPIRES_IN} \
-                --build-arg MINIO_ENDPOINT=${MINIO_ENDPOINT} \
-                --build-arg MINIO_PORT=${MINIO_PORT} \
-                --build-arg MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY} \
-                --build-arg MINIO_SECRET_KEY=${MINIO_SECRET_KEY} \
-                --build-arg MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME} \
-                --build-arg NODE_ENV=${NODE_ENV} \
-                --build-arg BASE_URL=${BASE_URL} \
-                --build-arg SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL} \
-                --build-arg SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD} \
+                --build-arg CORS_ORIGIN=${CORS_ORIGIN} \
+                --build-arg DEBUG=${DEBUG} \
+                --build-arg UPLOAD_MAX_SIZE_MB=${UPLOAD_MAX_SIZE_MB} \
+                --build-arg UPLOAD_DIR=${UPLOAD_DIR} \
+                --build-arg TYPEORM_LOGGING=${TYPEORM_LOGGING} \
+                --build-arg RATE_TTL=${RATE_TTL} \
+                --build-arg RATE_LIMIT=${RATE_LIMIT} \
+                --build-arg DB_LOGGING=${DB_LOGGING} \
+                --build-arg BACKEND_PROTOCOL=${BACKEND_PROTOCOL} \
+                --build-arg FRONTEND_ORIGIN=${FRONTEND_ORIGIN} \
                 --build-arg PORT=${PORT} \
                 -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
                 """

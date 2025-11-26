@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mobilite-urbaine-deployment
+  namespace: ${NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mobilite-urbaine
+  template:
+    metadata:
+      labels:
+        app: mobilite-urbaine
+    spec:
+      containers:
+      - name: mobilite-urbaine
+        image: ${FULL_IMAGE_NAME}
+        ports:
+        - containerPort: ${VITE_PORT}
+        env:
+        - name: VITE_PORT
+          value: "4007"
+        envFrom:
+        - secretRef:
+            name: mobilite-urbaine-secret
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: ${VITE_PORT}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: ${VITE_PORT}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      imagePullSecrets:
+      - name: harbor-registry-secret

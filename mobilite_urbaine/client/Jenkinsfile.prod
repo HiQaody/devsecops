@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY         = 'harbor.tsirylab.com'
+        REGISTRY         = credentials('REGISTERY_URL_ID')
         HARBOR_PROJECT   = 'pnud-agvm'
         IMAGE_NAME       = 'mobilite-urbaine'
         IMAGE_TAG        = "${BUILD_NUMBER}"
@@ -13,13 +13,13 @@ pipeline {
         SERVICE_NAME     = 'mobilite-urbaine-service'
         HPA_NAME         = 'mobilite-urbaine-hpa'
         SECRET_NAME      = 'mobilite-urbaine-secret'
-        VITE_API_BASE_URL="https://gateway.tsirylab.com/serviceflotte"
-        VITE_API_BASE_URL_DEFAULT="https://gateway.tsirylab.com"
-        VITE_IZOTRA_URL="https://izotra.tsirylab.com/login"
-        VITE_REGISTER_URL="https://criv.tsirylab.com/registerUser"
-        VITE_FORGOT_PWD_URL="https://criv.tsirylab.com/forgot-password"
+        VITE_API_BASE_URL="https://gateway.agvm.mg/serviceflotte"
+        VITE_API_BASE_URL_DEFAULT="https://gateway.agvm.mg"
+        VITE_IZOTRA_URL="https://izotra.agvm.mg/login"
+        VITE_REGISTER_URL="https://criv.agvm.mg/registerUser"
+        VITE_FORGOT_PWD_URL="https://criv.agvm.mg/forgot-password"
         VITE_OSRM_URL="https://router.project-osrm.org/route/v1/driving"
-        VITE_TERRITORY_V2_URL="https://gateway.tsirylab.com/serviceterritoire-v2/serviceterritoire/get-code"
+        VITE_TERRITORY_V2_URL="https://gateway.agvm.mg/serviceterritoire-v2/serviceterritoire/get-code"
         VITE_APK_FILE_NAME="releaseapk%2F1759994844773-161ca466-ec0a-4de7-bbc0-cc8aa73015bf.apk"
         VITE_APP_ID="6"
         VITE_APP_MOBILE_ID="12"
