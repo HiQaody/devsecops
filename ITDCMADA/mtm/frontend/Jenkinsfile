@@ -2,11 +2,17 @@ pipeline {
     agent any
 
     environment {
-        CONTAINER_NAME   = 'gesco-front'
-        IMAGE_NAME       = 'gesco-front'
+        CONTAINER_NAME   = 'mtm-front'
+        IMAGE_NAME       = 'mtm-front'
         IMAGE_TAG        = "${BUILD_NUMBER}"
-        NEXT_PORT        = '3140'
-        NEXT_PUBLIC_BASE_URL = 'https://gesco-api.itdcmada.mg'
+        NEXT_PORT        = '3147'
+        NEXT_PUBLIC_APP_URL = 'https://mtm.itdcmada.mg'
+        NEXT_PUBLIC_APP_NAME = 'MTM Website'
+        NEXT_PUBLIC_APP_DESCRIPTION = 'Promouvoir un développement durable et une technologie adaptée à toutes les couches sociales de Madagascar'
+        NEXT_PUBLIC_API_URL = 'https://mtm-api.itdcmada.mg'
+        NEXT_PUBLIC_API_BASE_URL = 'https://mtm-api.itdcmada.mg/v1'
+        NEXT_PUBLIC_ACCESS_TOKEN_EXPIRE_MINUTES = '60'
+        
     }
 
     stages {
@@ -14,7 +20,12 @@ pipeline {
             steps {
                 sh '''
                     docker build \
-                      --build-arg NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL} \
+                      --build-arg NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
+                      --build-arg NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME} \
+                      --build-arg NEXT_PUBLIC_APP_DESCRIPTION=${NEXT_PUBLIC_APP_DESCRIPTION} \
+                      --build-arg NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+                      --build-arg NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL} \
+                      --build-arg NEXT_PUBLIC_ACCESS_TOKEN_EXPIRE_MINUTES=${NEXT_PUBLIC_ACCESS_TOKEN_EXPIRE_MINUTES} \
                       --build-arg NEXT_PORT=${NEXT_PORT} \
                       -t ${IMAGE_NAME}:${IMAGE_TAG} .
                 '''
@@ -37,6 +48,12 @@ pipeline {
                         -p ${NEXT_PORT}:${NEXT_PORT} \
                         --restart unless-stopped \
                         -e NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL} \
+                        -e NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
+                        -e NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME} \
+                        -e NEXT_PUBLIC_APP_DESCRIPTION=${NEXT_PUBLIC_APP_DESCRIPTION} \
+                        -e NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+                        -e NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL} \
+                        -e NEXT_PUBLIC_ACCESS_TOKEN_EXPIRE_MINUTES=${NEXT_PUBLIC_ACCESS_TOKEN_EXPIRE_MINUTES} \
                         -e NEXT_PORT=${NEXT_PORT} \
                         ${IMAGE_NAME}:${IMAGE_TAG}
                 '''
