@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY         = 'harbor.tsirylab.com'
+        REGISTRY         = credentials('REGISTERY_URL_ID')
         HARBOR_PROJECT   = 'pnud-agvm'
         IMAGE_NAME       = 'criv-admin'
         IMAGE_TAG        = "${BUILD_NUMBER}"
@@ -15,6 +15,11 @@ pipeline {
         SECRET_NAME      = 'criv-admin-secret'
         PORT             = '4006'
         VITE_API_URL     = credentials('GATEWAY_URL_ID')
+        VITE_WS_URL='wss://gateway.tsirylab.com/'
+        VITE_APP_URL='https://criv.tsirylab.com/'
+        VITE_REGISTER_URL='https://criv.tsirylab.com/register'
+        VITE_REGISTER_USER_URL='https://criv.tsirylab.com/registerUser'
+        VITE_FORGOT_PASSWORD_URL='https://criv.tsirylab.com/forgot-password'
     }
 
     stages {
@@ -33,6 +38,11 @@ pipeline {
 
                         docker build \
                           --build-arg VITE_API_URL=${VITE_API_URL} \
+                            --build-arg VITE_WS_URL=${VITE_WS_URL} \
+                            --build-arg VITE_APP_URL=${VITE_APP_URL} \
+                            --build-arg VITE_REGISTER_URL=${VITE_REGISTER_URL} \
+                            --build-arg VITE_REGISTER_USER_URL=${VITE_REGISTER_USER_URL} \
+                            --build-arg VITE_FORGOT_PASSWORD_URL=${VITE_FORGOT_PASSWORD_URL} \
                           --build-arg PORT=${PORT} \
                           -t ${FULL_IMAGE_NAME} .
 
@@ -92,9 +102,14 @@ pipeline {
                             echo "=== Création du secret applicatif ==="
                             kubectl delete secret ${SECRET_NAME} -n ${NAMESPACE} --ignore-not-found=true
                             kubectl create secret generic ${SECRET_NAME} \
-                              --from-literal=VITE_API_URL="${VITE_API_URL}" \
-                              --from-literal=VITE_PORT="${PORT}" \
-                              --namespace=${NAMESPACE}
+                                --from-literal=VITE_API_URL="${VITE_API_URL}" \
+                                --from-literal=VITE_WS_URL="${VITE_WS_URL}" \
+                                --from-literal=VITE_APP_URL="${VITE_APP_URL}" \
+                                --from-literal=VITE_REGISTER_URL="${VITE_REGISTER_URL}" \
+                                --from-literal=VITE_REGISTER_USER_URL="${VITE_REGISTER_USER_URL}" \
+                                --from-literal=VITE_FORGOT_PASSWORD_URL="${VITE_FORGOT_PASSWORD_URL}" \
+                                --from-literal=VITE_PORT="${PORT}" \
+                                --namespace=${NAMESPACE}
 
                             echo "=== Application des manifestes Kubernetes ==="
                             export FULL_IMAGE_NAME="${FULL_IMAGE_NAME}"
