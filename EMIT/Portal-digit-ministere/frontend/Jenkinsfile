@@ -1,0 +1,58 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME       = 'digital-min-front'
+        IMAGE_NAME     = 'digital-min-front'
+        IMAGE_TAG      = "${BUILD_NUMBER}"
+        APP_PORT       = '5001'
+        NEXT_PUBLIC_API_BASE_URL = 'https://digit-min-api.emit.mg'
+    }
+
+    stages {
+
+        stage('Build Image') {
+            steps {
+                sh '''
+                    docker build \
+                        --build-arg NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                '''
+            }
+        }
+
+        stage('Verify Image') {
+            steps {
+                sh '''
+                    echo "Testing container before deploy..."
+                    docker run --rm ${IMAGE_NAME}:${IMAGE_TAG} node -v
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh '''
+                    if docker ps -a | grep ${APP_NAME}; then
+                        docker stop ${APP_NAME} || true
+                        docker rm ${APP_NAME} || true
+                    fi
+
+                    docker run -d \
+                        --name ${APP_NAME} \
+                        -p ${APP_PORT}:${APP_PORT} \
+                        --restart unless-stopped \
+                        -e NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            sh "docker image prune -f"
+            cleanWs()
+        }
+    }
+}
