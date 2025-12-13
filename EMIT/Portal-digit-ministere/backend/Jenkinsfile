@@ -1,0 +1,60 @@
+pipeline{
+
+    environnement{
+        DOCKER_CONTAINER_NAME = 'digital-ministere-backend'
+        DOCKER_IMAGE = 'digital-ministere-backend'
+        DOCKER_TAG = '${BUILD_NUMBER}'
+        POSTGRES_HOST = credentials('POSTGRES_HOST_ID')
+        POSTGRES_PORT = credentials('POSTGRES_PORT_ID')
+        POSTGRES_USER = credentials('POSTGRES_USER_ID')
+        POSTGRES_PASSWORD = credentials('POSTGRES_PASSWORD_ID')
+        POSTGRES_DB = 'digit_ministere'
+
+        DATABASE_URL = "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public"
+
+        KEYCLOAK_URL='https://auth.emit.mg'
+        KEYCLOAK_REALM='digit-ministere-realm'
+        KEYCLOAK_CLIENT_ID='digit-ministere-backend'
+        KEYCLOAK_CLIENT_SECRET= credentials('KEYCLOAK_DIGITAL_SECRET_ID')
+
+        PORT='5002'
+    }
+
+    stages{
+        stage('Build Immage Docker'){
+            steps{
+                sh 'echo "Building the image Docker..."'
+                sh '''
+                    docker build \
+                    --build-arg DATABASE_URL=${DATABASE_URL} \
+                    --build-arg KEYCLOAK_URL=${KEYCLOAK_URL} \
+                    --build-arg KEYCLOAK_REALM=${KEYCLOAK_REALM} \
+                    --build-arg KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID} \
+                    --build-arg KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET} \
+                    -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                '''
+            }
+        }
+
+        stage('Verification les anciens Stop Containers'){
+            steps{
+                sh '''
+                    if [ $(docker ps -a -q -f name=${DOCKER_CONTAINER_NAME}) ]; then
+                        docker stop ${DOCKER_CONTAINER_NAME}
+                        docker rm ${DOCKER_CONTAINER_NAME}
+                    fi
+                '''
+            }
+        }
+
+        stage('Deploy Application'){
+            steps{
+                sh 'echo "Deploying the application..."'
+                
+                sh '''
+                    docker run -d --name ${DOCKER_CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE}:${DOCKER_TAG}
+                '''
+            }
+        }
+    }
+}
