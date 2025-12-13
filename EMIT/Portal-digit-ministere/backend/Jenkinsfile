@@ -57,4 +57,13 @@ pipeline{
             }
         }
     }
+
+    post {
+        always {
+            script {
+                echo 'Cleaning workspace...'
+                cleanWs()
+            }
+        }
+    }
 }
