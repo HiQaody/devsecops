@@ -1,0 +1,45 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_CONTAINER_NAME = 'biblio-haidigital-api'
+        DOCKER_IMAGE_NAME = 'biblio-backend'
+        DOCKER_TAG = "${BUILD_NUMBER}"
+
+        VITE_API_BASE_URL = 'http://api-biblio.itdcmada.com/api'
+        VITE_API_TIMEOUT = '5000'
+        PORT = '3154'
+    }
+
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh """
+                        docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} \
+                        --build-arg VITE_API_BASE_URL=${VITE_API_BASE_URL} \
+                        --build-arg VITE_API_TIMEOUT=${VITE_API_TIMEOUT} \
+                        --build-arg PORT=${PORT} .
+                    """
+                }
+            }
+        }
+        stage('Run Docker Container') {
+            steps {
+                script {
+                    // Stop and remove existing container if it exists
+                    sh """
+                        docker rm -f ${DOCKER_CONTAINER_NAME} || true
+                        docker run -d --name ${DOCKER_CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}

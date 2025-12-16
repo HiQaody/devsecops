@@ -1,0 +1,51 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_CONTAINER_NAME = 'biblio-haidigital-api'
+        DOCKER_IMAGE_NAME = 'biblio-backend'
+        DOCKER_TAG = "${BUILD_NUMBER}"
+
+        DB_HOST = credentials('DB_HOST_ID')
+        DB_PORT = credentials('DB_PORT_ID')
+        DB_USERNAME = credentials('POSTGRES_USER_ID')
+        DB_PASSWORD = credentials('POSTGRES_PASSWORD_ID')
+        DB_DATABASE = "biblio_haidigital"
+        PORT = '3153'
+    }
+
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh """
+                        docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} \
+                        --build-arg DB_HOST=${DB_HOST} \
+                        --build-arg DB_PORT=${DB_PORT} \
+                        --build-arg DB_USERNAME=${DB_USERNAME} \
+                        --build-arg DB_PASSWORD=${DB_PASSWORD} \
+                        --build-arg DB_DATABASE=${DB_DATABASE} \
+                        --build-arg PORT=${PORT} .
+                    """
+                }
+            }
+        }
+        stage('Run Docker Container') {
+            steps {
+                script {
+                    // Stop and remove existing container if it exists
+                    sh """
+                        docker rm -f ${DOCKER_CONTAINER_NAME} || true
+                        docker run -d --name ${DOCKER_CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
