@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: adminagvm-service
+  namespace: pnud-agvm
+spec:
+  selector:
+    app: adminagvm
+  ports:
+    - protocol: TCP
+      port: 4017
+      targetPort: 4017
+      nodePort: 30052
+  type: NodePort
