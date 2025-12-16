@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_CONTAINER_NAME = 'biblio-haidigital-api'
-        DOCKER_IMAGE_NAME = 'biblio-backend'
+        DOCKER_CONTAINER_NAME = 'biblio-haidigital'
+        DOCKER_IMAGE_NAME = 'biblio-haidigital'
         DOCKER_TAG = "${BUILD_NUMBER}"
 
-        VITE_API_BASE_URL = 'http://api-biblio.itdcmada.com/api'
+        VITE_API_BASE_URL = 'https://api-biblio.itdcmada.com/api'
         VITE_API_TIMEOUT = '5000'
         PORT = '3154'
     }
