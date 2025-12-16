@@ -1,0 +1,88 @@
+pipeline {
+    agent any
+
+    environment {
+        CONTAINER_NAME = 'signal-incident-backend'
+        IMAGE_NAME     = 'signal-incident-backend'
+        IMAGE_TAG      = "${BUILD_NUMBER}"
+        PORT           = '3157'
+        SUPABASE_URL   = credentials('INCIDENCE_SUPABASE_URL')
+        SUPABASE_KEY   = credentials('INCIDENCE_SUPABASE_KEY')
+        SECRET_KEY     = credentials('SECRET_KEY_ID')
+        ALGORITHM      = 'HS256'
+        ACCESS_TOKEN_EXPIRE_MINUTES = '1440'  // 1 day
+        SMTP_SERVER   = credentials('SMTP_HOST_ID')
+        SMTP_PORT     = credentials('SMTP_PORT_ID')
+        FROM_EMAIL    = credentials('SMTP_USER_ID')
+        PASSWORD      = credentials('SMTP_PASS_ID')
+        GOOGLE_APPLICATION_CREDENTIALS = credentials('INCIDENCE_GOOGLE_APPLICATION_CREDENTIALS')
+        FACEBOOK_APP_ID = credentials('INCIDENCE_FACEBOOK_APP_ID')
+        FACEBOOK_APP_SECRET = credentials('INCIDENCE_FACEBOOK_APP_SECRET')
+        API_BASE_URL = 'https://api-incidence.itdcmada.com/api/v1'
+        FRONTEND_URL   = 'https://incidence.itdcmada.com'
+    }
+
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                    echo "➡️ Building image ${IMAGE_NAME}:${IMAGE_TAG}"
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} \\
+                        --build-arg SUPABASE_URL="${SUPABASE_URL}" \\
+                        --build-arg SUPABASE_KEY="${SUPABASE_KEY}" \\
+                        --build-arg SECRET_KEY="${SECRET_KEY}" \\
+                        --build-arg ALGORITHM="${ALGORITHM}" \\
+                        --build-arg ACCESS_TOKEN_EXPIRE_MINUTES="${ACCESS_TOKEN_EXPIRE_MINUTES}" \\
+                        --build-arg SMTP_SERVER="${SMTP_SERVER}" \\
+                        --build-arg SMTP_PORT="${SMTP_PORT}" \\
+                        --build-arg FROM_EMAIL="${FROM_EMAIL}" \\
+                        --build-arg PASSWORD="${PASSWORD}" \\
+                        --build-arg GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS}" \\
+                        --build-arg FACEBOOK_APP_ID="${FACEBOOK_APP_ID}" \\
+                        --build-arg FACEBOOK_APP_SECRET="${FACEBOOK_APP_SECRET}" \\
+                        --build-arg API_BASE_URL="${API_BASE_URL}" \\
+                        --build-arg FRONTEND_URL="${FRONTEND_URL}" \\
+                        --build-arg PORT="${PORT}" \\
+                        .
+                """
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh """
+                    echo "➡️ Stopping old container if exists"
+                    docker rm -f ${CONTAINER_NAME} || true
+
+                    echo "➡️ Running new container"
+                    docker run -d \\
+                        --name ${CONTAINER_NAME} \\
+                        -p ${PORT}:${PORT} \\
+                        --restart unless-stopped \\
+                        -e SUPABASE_URL="${SUPABASE_URL}" \\
+                        -e SUPABASE_KEY="${SUPABASE_KEY}" \\
+                        -e SECRET_KEY="${SECRET_KEY}" \\
+                        -e ALGORITHM="${ALGORITHM}" \\
+                        -e ACCESS_TOKEN_EXPIRE_MINUTES="${ACCESS_TOKEN_EXPIRE_MINUTES}" \\
+                        -e SMTP_SERVER="${SMTP_SERVER}" \\
+                        -e SMTP_PORT="${SMTP_PORT}" \\
+                        -e FROM_EMAIL="${FROM_EMAIL}" \\
+                        -e PASSWORD="${PASSWORD}" \\
+                        -e GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS}" \\
+                        -e FACEBOOK_APP_ID="${FACEBOOK_APP_ID}" \\
+                        -e FACEBOOK_APP_SECRET="${FACEBOOK_APP_SECRET}" \\
+                        -e API_BASE_URL="${API_BASE_URL}" \\
+                        -e FRONTEND_URL="${FRONTEND_URL}" \\
+                        -e PORT="${PORT}" \\
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}

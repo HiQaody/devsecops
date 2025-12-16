@@ -1,0 +1,35 @@
+FROM node:22-slim
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+# Ajouter les arguments pour la construction
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_SOCKET_URL
+
+ARG NEXT_PUBLIC_SUPABASE_URL=https://vckmozojowawnzyhdnjp.supabase.co
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZja21vem9qb3dhd256eWhkbmpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI2NDk3NjcsImV4cCI6MjA2ODIyNTc2N30.ZFJJ2xn0IZKmbB2G6-MuXS5439X9YWNMz9UBe1tIhDc
+
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDcL_jaz1U0eNvUyRJQFneQKA_o9q_4Pic
+ARG NEXT_PUBLIC_GOOGLE_GEOLOCATION_API_KEY=AIzaSyDcL_jaz1U0eNvUyRJQFneQKA_o9q_4Pic
+
+# Définir les variables d'environnement
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
+ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+
+RUN npm run build
+
+EXPOSE 3158
+
+# Copier le script d'initialisation et s'assurer qu'il est exécutable
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]

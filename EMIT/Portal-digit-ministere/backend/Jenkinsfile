@@ -1,6 +1,6 @@
 pipeline{
 
-    environnement{
+    environment {
         DOCKER_CONTAINER_NAME = 'digital-ministere-backend'
         DOCKER_IMAGE = 'digital-ministere-backend'
         DOCKER_TAG = '${BUILD_NUMBER}'
@@ -17,6 +17,18 @@ pipeline{
         KEYCLOAK_CLIENT_ID='digit-ministere-backend'
         KEYCLOAK_CLIENT_SECRET= credentials('KEYCLOAK_DIGITAL_SECRET_ID')
 
+        MINIO_ENDPOINT=credentials('MINIO_ENDPOINT_ID')
+        MINIO_PORT=credentials('MINIO_PORT_ID')
+        MINIO_ACCESS_KEY= credentials('MINIO_ACCESS_KEY_ID')
+        MINIO_SECRET_KEY= credentials('MINIO_SECRET_KEY_ID')
+        MINIO_BUCKET_NAME='digit-ministere-bucket'
+        MINIO_USE_SSL='false'
+        MINIO_ENABLED='true'
+
+        THROTTLER_LIMIT='15'
+        FRONTEND_ORIGINS='https://digital-min.emit.mg'
+        BACKEND_URL='https://digit-min-api.emit.mg'
+
         PORT='5002'
     }
 
@@ -31,6 +43,16 @@ pipeline{
                     --build-arg KEYCLOAK_REALM=${KEYCLOAK_REALM} \
                     --build-arg KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID} \
                     --build-arg KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET} \
+                    --build-arg MINIO_ENDPOINT=${MINIO_ENDPOINT} \
+                    --build-arg MINIO_PORT=${MINIO_PORT} \
+                    --build-arg MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY} \
+                    --build-arg MINIO_SECRET_KEY=${MINIO_SECRET_KEY} \
+                    --build-arg MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME} \
+                    --build-arg MINIO_USE_SSL=${MINIO_USE_SSL} \
+                    --build-arg MINIO_ENABLED=${MINIO_ENABLED} \
+                    --build-arg THROTTLER_LIMIT=${THROTTLER_LIMIT} \
+                    --build-arg FRONTEND_ORIGINS=${FRONTEND_ORIGINS} \
+                    --build-arg BACKEND_URL=${BACKEND_URL} \
                     -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
                 '''
             }
