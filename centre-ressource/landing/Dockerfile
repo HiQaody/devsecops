@@ -11,7 +11,10 @@ COPY . .
 
 # Définir la variable d'environnement build-time
 ARG VITE_API_URL
+ARG VITE_FEEDBACK_URL
+
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_FEEDBACK_URL=${VITE_FEEDBACK_URL}
 
 # Construire l'application Vite avec la variable injectée
 RUN npm run build

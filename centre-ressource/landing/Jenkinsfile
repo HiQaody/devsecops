@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY         = 'harbor.tsirylab.com'
+        REGISTRY         = credentials('HARBOR_URL_ID')
         HARBOR_PROJECT   = 'pnud-agvm'
         IMAGE_NAME       = 'criv-client'
         IMAGE_TAG        = "${BUILD_NUMBER}"
@@ -15,6 +15,7 @@ pipeline {
         SECRET_NAME      = 'criv-client-secret'
         PORT             = '4004'
         VITE_API_URL     = credentials('GATEWAY_URL_ID')
+        VITE_FEEDBACK_URL = credentials('FEEDBACK_URL_ID')
     }
 
     stages {
@@ -34,6 +35,7 @@ pipeline {
                         docker build \
                           --build-arg VITE_API_URL=${VITE_API_URL} \
                           --build-arg PORT=${PORT} \
+                          --build-arg VITE_FEEDBACK_URL=${VITE_FEEDBACK_URL} \
                           -t ${FULL_IMAGE_NAME} .
 
                         echo ${HARBOR_PASS} | \
@@ -94,6 +96,7 @@ pipeline {
                             kubectl create secret generic ${SECRET_NAME} \
                               --from-literal=VITE_API_URL="${VITE_API_URL}" \
                               --from-literal=VITE_PORT="${PORT}" \
+                              --from-literal=VITE_FEEDBACK_URL="${VITE_FEEDBACK_URL}" \
                               --namespace=${NAMESPACE}
 
                             echo "=== Application des manifestes Kubernetes ==="
