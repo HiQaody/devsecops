@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: itantsoroka-service
+  namespace: pnud-agvm
+spec:
+  selector:
+    app: itantsoroka
+  ports:
+    - protocol: TCP
+      port: 4009
+      targetPort: 4009
+      nodePort: 30054
+  type: NodePort
