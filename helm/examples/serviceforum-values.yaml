@@ -1,0 +1,84 @@
+# Exemple de fichier de valeurs pour serviceforum
+# Utilisation: helm install serviceforum ./helm -f examples/serviceforum-values.yaml
+
+nameOverride: "serviceforum"
+fullnameOverride: "serviceforum"
+
+namespace:
+  name: pnud-agvm
+  create: true
+
+image:
+  registry: harbor.example.com
+  repository: serviceforum
+  tag: latest
+  pullPolicy: Always
+  pullSecrets:
+    - name: harbor-registry-secret
+
+replicaCount: 1
+
+service:
+  enabled: true
+  type: NodePort
+  port: 5015
+  targetPort: 5015
+  nodePort: 30025
+
+ingress:
+  enabled: false
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+resources:
+  requests:
+    cpu: "200m"
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"
+
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /serviceforum
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /serviceforum
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+securityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+envFromSecret:
+  enabled: true
+  createSecret: true
+  data:
+    DB_HOST: "postgres.default.svc.cluster.local"
+    DB_PORT: "5432"
+    DB_USERNAME: "forumuser"
+    DB_PASSWORD: "change-me-in-production"
+    DB_DATABASE: "forum_db"
+    UPLOAD_URL: "https://upload.example.com"

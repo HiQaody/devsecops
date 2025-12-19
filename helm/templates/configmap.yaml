@@ -1,0 +1,13 @@
+{{- if and .Values.envFromConfigMap.enabled .Values.envFromConfigMap.createConfigMap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "microservice.configMapName" . }}
+  namespace: {{ include "microservice.namespace" . }}
+  labels:
+    {{- include "microservice.labels" . | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.envFromConfigMap.data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}

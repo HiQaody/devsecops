@@ -1,0 +1,159 @@
+# Default values for microservice deployment
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Application name - override this for each microservice
+nameOverride: ""
+fullnameOverride: ""
+
+# Namespace configuration
+namespace:
+  create: true
+  name: default
+
+# Image configuration
+image:
+  registry: harbor.example.com
+  repository: my-microservice
+  tag: latest
+  pullPolicy: Always
+  pullSecrets:
+    - name: harbor-registry-secret
+
+# Replica configuration
+replicaCount: 1
+
+# Service configuration
+service:
+  enabled: true
+  type: NodePort
+  port: 8080
+  targetPort: 8080
+  nodePort: 30080
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: example.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: example-tls
+  #    hosts:
+  #      - example.local
+
+# Autoscaling configuration (HPA)
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Resource limits and requests
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+# Health checks
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Security context
+securityContext:
+  enabled: false
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod labels
+podLabels: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Environment variables from Secret
+envFromSecret:
+  enabled: true
+  secretName: ""  # Will default to {{ .Release.Name }}-secret
+  createSecret: true
+  data: {}
+    # Example:
+    # DB_HOST: "localhost"
+    # DB_PORT: "5432"
+    # DB_USERNAME: "user"
+    # DB_PASSWORD: "password"
+
+# Environment variables from ConfigMap
+envFromConfigMap:
+  enabled: false
+  configMapName: ""  # Will default to {{ .Release.Name }}-configmap
+  createConfigMap: true
+  data: {}
+    # Example:
+    # LOG_LEVEL: "info"
+    # APP_ENV: "production"
+
+# Additional environment variables
+env: []
+  # - name: CUSTOM_VAR
+  #   value: "custom_value"
+
+# Service Account
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""
+
+# Volume mounts
+volumeMounts: []
+  # - name: config
+  #   mountPath: /etc/config
+  #   readOnly: true
+
+# Volumes
+volumes: []
+  # - name: config
+  #   configMap:
+  #     name: my-config
