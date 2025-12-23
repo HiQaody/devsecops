@@ -12,12 +12,14 @@ pipeline {
         DB_NAME        = 'ecat'
         DB_HOST        = credentials('DB_HOST_ID')
         DB_PORT        = credentials('DB_PORT_ID')
-        SECRET_KEY     = credentials('SECRET_KEY_ID')
         DATABASE_URL   = "postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
-        ADMIN_EMAIL     = 'admin.ecat@itdcmada.com'
-        ADMIN_PASSWORD  = 'Adm!nEcta#'
-        DEBUG           = 'True'
-        OLD_IMAGE_TAG   = ''
+        
+        // minio
+        MINIO_ENDPOINT    = credentials('MINIO_ENDPOINT_ID')
+        MINIO_ACCESS_KEY  = credentials('MINIO_ACCESS_KEY_ID')
+        MINIO_SECRET_KEY  = credentials('MINIO_SECRET_KEY_ID')
+        MINIO_BUCKET      = 'ecat-bucket'
+        
     }
 
     stages {
