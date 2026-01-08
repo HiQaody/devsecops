@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: feedbackadmin-service
+  namespace: pnud-agvm
+spec:
+  selector:
+    app: feedbackadmin
+  ports:
+    - protocol: TCP
+      port: 4019
+      targetPort: 4019
+      nodePort: 30054
+  type: NodePort
