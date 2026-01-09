@@ -10,5 +10,5 @@ spec:
     - protocol: TCP
       port: 4019
       targetPort: 4019
-      nodePort: 30054
+      nodePort: 30055
   type: NodePort
