@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_CONTAINER_NAME = 'biblio-front-end'
+        DOCKER_IMAGE_NAME = 'biblio-front-end'
+        DOCKER_TAG = "${BUILD_NUMBER}"
+
+        VITE_API_URL = 'https://api-biblio.itdcmada.com/api/v1'
+        VITE_JWT_EXPIRE = '3600s'
+        PORT = '3155'
+    }
+
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh """
+                        docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} \
+                        --build-arg VITE_API_URL=${VITE_API_URL} \
+                        --build-arg VITE_JWT_EXPIRE=${VITE_JWT_EXPIRE} \
+                        --build-arg PORT=${PORT} .
+                    """
+                }
+            }
+        }
+        stage('Run Docker Container') {
+            steps {
+                script {
+                    // Stop and remove existing container if it exists
+                    sh """
+                        docker run -d \
+                            --name ${DOCKER_CONTAINER_NAME} \
+                            --restart unless-stopped \
+                            -p ${PORT}:${PORT} \
+                            -e VITE_PORT=${PORT} \
+                            -e VITE_API_URL=${VITE_API_URL} \
+                            -e VITE_JWT_EXPIRE=${VITE_JWT_EXPIRE} \
+                            --health-cmd="wget -qO- http://localhost:${PORT}/ || exit 1" \
+                            --health-interval=30s \
+                            --health-retries=3 \
+                            ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
