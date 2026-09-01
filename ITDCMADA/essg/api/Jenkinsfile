@@ -22,7 +22,7 @@ pipeline {
         APP_PORT = "${CONTAINER_PORT}"
         APP_URL = "http://localhost:${HOST_PORT}"
         POSTGRES_DB = 'essg'
-        CORS_ORIGINS = 'http://localhost:3000,http://localhost:3001,https://essg-api.itdcmada.com,https://essg.iitdcmada.com,https://essg-admin.itdcmada.com'
+        CORS_ORIGINS = 'http://localhost:3000,http://localhost:3001,https://essg-api.itdcmada.com,https://essg.itdcmada.com,https://essg-admin.itdcmada.com'
 
         // Defaults non sensibles
         UPLOAD_PATH = 'uploads'
@@ -33,6 +33,9 @@ pipeline {
         PERF_LOG = 'false'
         PERF_SQL = 'false'
         PERF_SLOW_MS = '400'
+        SMTP_SECURE = 'false'
+        SMTP_FROM = "ESSG <contact@essg.mg>"
+        SMTP_REPLY_TO = 'contact@essg.mg'
 
         // Logging options
         LOG_DRIVER = 'json-file'
@@ -105,10 +108,10 @@ pipeline {
                             string(credentialsId: 'MINIO_PORT_ID', variable: 'MINIO_PORT'),
                             string(credentialsId: 'MINIO_HOST_ID', variable: 'MINIO_HOST'),
 
-                            string(credentialsId: 'SMTP_HOST_ID', variable: 'SMTP_HOST'),
-                            string(credentialsId: 'SMTP_PORT_ID', variable: 'SMTP_PORT'),
-                            string(credentialsId: 'SMTP_USER_ID', variable: 'SMTP_USER'),
-                            string(credentialsId: 'SMTP_PASS_ID', variable: 'SMTP_PASS'),
+                            string(credentialsId: 'MAILER_HOST_ID', variable: 'SMTP_HOST'),
+                            string(credentialsId: 'MAILER_PORT_ID', variable: 'SMTP_PORT'),
+                            string(credentialsId: 'MAILER_USER_ID', variable: 'SMTP_USER'),
+                            string(credentialsId: 'MAILER_PASS_ID', variable: 'SMTP_PASS'),
 
                             string(credentialsId: 'REDIS_HOST_ID', variable: 'REDIS_HOST'),
                             string(credentialsId: 'REDIS_PORT_ID', variable: 'REDIS_PORT'),
@@ -157,6 +160,9 @@ pipeline {
                         -e "SMTP_PORT=${SMTP_PORT}" \
                         -e "SMTP_USER=${SMTP_USER}" \
                         -e "SMTP_PASS=${SMTP_PASS}" \
+                        -e "SMTP_SECURE=${SMTP_SECURE}" \
+                        -e "SMTP_FROM=${SMTP_FROM}" \
+                        -e "SMTP_REPLY_TO=${SMTP_REPLY_TO}" \
                         -e "REDIS_HOST=${REDIS_HOST}" \
                         -e "REDIS_PORT=${REDIS_PORT}" \
                         -e "ADMIN_EMAIL=${ADMIN_EMAIL}" \
