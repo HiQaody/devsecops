@@ -1,59 +1,43 @@
+# Node
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build outputs
+dist
+build
+coverage
+
+# Local env / secrets
+.env
+.env.* 
+.env.local
+.env.development
+.env.production
+.env.test
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
 # Git
 .git
 .gitignore
-.gitattributes
 
-# Node
-node_modules
-npm-debug.log
-yarn-error.log
-package-lock.json
-yarn.lock
-
-# IDE
-.vscode
-.idea
-.DS_Store
-*.swp
-*.swo
-*~
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# Build artifacts
-dist
-build
-
-# Tests
-coverage
-.nyc_output
-*.lcov
-
-# CI/CD
-.github
-.gitlab-ci.yml
-.circleci
-Jenkinsfile
-
-# Documentation
-README.md
-docs
-examples
-
-# Docker
-Dockerfile
-docker-compose.yml
+# Docker / CI artifacts not needed in build context
+docker-compose*.yml
 .dockerignore
+*.md
 
-# Logs
-logs
-*.log
-
-# Temporary files
+# Temporary / logs
 tmp
 temp
-*.tmp
-.cache
+*.log
+
+# Misc
+coverage/
+*.local

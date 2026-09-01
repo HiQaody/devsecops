@@ -2,100 +2,63 @@ pipeline {
     agent any
 
     environment {
-        CONTAINER_NAME      = 'essg-front'
-        IMAGE_NAME          = 'essg-front'
-        IMAGE_TAG           = "${BUILD_NUMBER}"
-        VITE_PORT           = '3170'
-        VITE_API_BASE_URL   = 'https://essg-api.itdcmada.com'
-        
-        // Gestion Memory
-        MEMORY_LIMIT        = '512m'
-        MEMORY_RESERVATION  = '256m'
-        CPU_SHARES          = '512'
-        
-        // Logs
-        LOG_DIR             = '/var/log/docker/${CONTAINER_NAME}'
-    }
+        // Image / container
+        CONTAINER_NAME = 'essg-api'
+        IMAGE_NAME = 'essg-api'
+        IMAGE_TAG = "${BUILD_NUMBER}"
 
-    options {
-        timeout(time: 30, unit: 'MINUTES')
-        timestamps()
-        buildDiscarder(logRotator(numToKeepStr: '10'))
+        // Ports
+        HOST_PORT = '3171'      // port exposé sur l'hôte
+        CONTAINER_PORT = '3171'      // port utilisé par l'app dans le conteneur
+
+        // Ressources
+        MEMORY_LIMIT = '512m'
+        MEMORY_RESERVATION = '256m'
+        CPU_SHARES = '512'
+
+        // Application (production)
+        NODE_ENV = 'production'
+        APP_ENV = 'production'
+        APP_PORT = "${CONTAINER_PORT}"
+        APP_URL = "http://localhost:${HOST_PORT}"
+        POSTGRES_DB = 'essg'
+        CORS_ORIGINS = 'http://localhost:3000,http://localhost:3001,https://essg-api.itdcmada.com,https://essg.iitdcmada.com,https://essg-admin.itdcmada.com'
+
+        // Defaults non sensibles
+        UPLOAD_PATH = 'uploads'
+        MINIO_BUCKET = 'essg'
+        MINIO_USE_SSL = 'false'
+        RATE_LIMIT_ENABLED = 'true'
+        HEALTH_MEMORY_LIMIT_MB = '512'
+        PERF_LOG = 'false'
+        PERF_SQL = 'false'
+        PERF_SLOW_MS = '400'
+
+        // Logging options
+        LOG_DRIVER = 'json-file'
+        LOG_MAX_SIZE = '10m'
+        LOG_MAX_FILE = '3'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                script {
-                    echo "📦 Récupération du code source..."
-                    checkout scm
-                    echo "✅ Code source récupéré avec succès"
-                }
-            }
-        }
-
-        stage('Validate') {
-            steps {
-                script {
-                    echo "🔍 Validation des fichiers..."
-                    sh '''
-                        # Vérifier que les fichiers essentiels existent
-                        [ -f "package.json" ] || (echo "❌ package.json manquant" && exit 1)
-                        [ -f "Dockerfile" ] || (echo "❌ Dockerfile manquant" && exit 1)
-                        [ -f "vite.config.ts" ] || (echo "❌ vite.config.ts manquant" && exit 1)
-                        echo "✅ Tous les fichiers essentiels sont présents"
-                    '''
-                }
-            }
-        }
-
-        stage('Clean Old Images') {
-            steps {
-                script {
-                    echo "🧹 Nettoyage des anciennes images..."
-                    sh '''
-                        # Supprimer les images dangling
-                        docker image prune -f --filters "dangling=true" || true
-                        
-                        # Garder seulement les 5 dernières versions
-                        docker images ${IMAGE_NAME} --format "{{.ID}}" | tail -n +6 | xargs -r docker rmi -f || true
-                        echo "✅ Nettoyage terminé"
-                    '''
-                }
+                checkout scm
             }
         }
 
         stage('Build Image') {
             steps {
                 script {
-                    echo "🔨 Construction de l'image Docker..."
+                    echo "Construction de l'image Docker ${IMAGE_NAME}:${IMAGE_TAG}..."
                     sh '''
                         docker build \
-                          --build-arg VITE_PORT=${VITE_PORT} \
-                          --build-arg VITE_API_BASE_URL=${VITE_API_BASE_URL} \
-                          -t ${IMAGE_NAME}:${IMAGE_TAG} \
-                          -t ${IMAGE_NAME}:latest .
+                        --build-arg APP_PORT=${APP_PORT} \
+                        --build-arg NODE_ENV=${NODE_ENV} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
                         
-                        echo "✅ Image construite : ${IMAGE_NAME}:${IMAGE_TAG}"
-                        docker images | grep ${IMAGE_NAME}
-                    '''
-                }
-            }
-        }
-
-        stage('Health Check Image') {
-            steps {
-                script {
-                    echo "🏥 Vérification de l'image..."
-                    sh '''
-                        # Vérifier que l'image a bien été créée
-                        if docker inspect ${IMAGE_NAME}:${IMAGE_TAG} > /dev/null 2>&1; then
-                            echo "✅ Image valide"
-                            docker inspect ${IMAGE_NAME}:${IMAGE_TAG} | grep -E "Id|RepoTags" | head -5
-                        else
-                            echo "❌ Erreur : Image non trouvée"
-                            exit 1
-                        fi
+                        echo "Image construite : ${IMAGE_NAME}:${IMAGE_TAG}"
+                        docker images | grep ${IMAGE_NAME} || true
                     '''
                 }
             }
@@ -104,16 +67,17 @@ pipeline {
         stage('Stop Old Container') {
             steps {
                 script {
-                    echo "🛑 Arrêt de l'ancien conteneur..."
+                    echo "Arrêt/suppression de l'ancien conteneur (si présent)..."
                     sh '''
-                        if [ "$(docker ps -aq -f name=${CONTAINER_NAME})" ]; then
-                            echo "🔴 Conteneur ${CONTAINER_NAME} détecté, arrêt en cours..."
-                            docker stop ${CONTAINER_NAME} || true
-                            sleep 2
-                            docker rm ${CONTAINER_NAME} || true
-                            echo "✅ Ancien conteneur supprimé"
+                        OLD=$(docker ps -aq -f name=${CONTAINER_NAME} || true)
+                        if [ -n "$OLD" ]; then
+                        echo "Conteneur ${CONTAINER_NAME} détecté, arrêt en cours..."
+                        docker stop ${CONTAINER_NAME} || true
+                        sleep 2
+                        docker rm ${CONTAINER_NAME} || true
+                        echo "Ancien conteneur supprimé"
                         else
-                            echo "ℹ️ Aucun conteneur ${CONTAINER_NAME} en cours d'exécution"
+                        echo "Aucun conteneur ${CONTAINER_NAME} en cours d'exécution"
                         fi
                     '''
                 }
@@ -123,108 +87,112 @@ pipeline {
         stage('Deploy Container') {
             steps {
                 script {
-                    echo "🚀 Déploiement du nouveau conteneur..."
-                    sh '''
-                        # Créer le répertoire de logs s'il n'existe pas
-                        mkdir -p ${LOG_DIR}
-                        
-                        # Démarrer le conteneur
-                        docker run -d \
-                            --memory ${MEMORY_LIMIT} \
-                            --memory-reservation ${MEMORY_RESERVATION} \
-                            --cpu-shares ${CPU_SHARES} \
-                            --name ${CONTAINER_NAME} \
-                            -p ${VITE_PORT}:${VITE_PORT} \
-                            --restart unless-stopped \
-                            -e VITE_API_BASE_URL=${VITE_API_BASE_URL} \
-                            -e VITE_PORT=${VITE_PORT} \
-                            --log-driver json-file \
-                            --log-opt max-size=10m \
-                            --log-opt max-file=3 \
-                            ${IMAGE_NAME}:${IMAGE_TAG}
-                        
-                        echo "✅ Conteneur démarré"
-                        sleep 3
-                    '''
-                }
-            }
-        }
+                    echo "Déploiement du conteneur ${IMAGE_NAME}:${IMAGE_TAG}..."
+                    // Injecter les credentials depuis Jenkins (IDs listés dans votre message)
+                    withCredentials([
+                            string(credentialsId: 'DB_HOST_ID', variable: 'POSTGRES_HOST'),
+                            string(credentialsId: 'DB_PORT_ID', variable: 'POSTGRES_PORT'),
+                            string(credentialsId: 'DB_USER_ID', variable: 'POSTGRES_USER'),
+                            string(credentialsId: 'DB_PASSWORD_ID', variable: 'POSTGRES_PASSWORD'),
 
-        stage('Verify Deployment') {
-            steps {
-                script {
-                    echo "🔍 Vérification du déploiement..."
-                    sh '''
-                        # Vérifier que le conteneur est en cours d'exécution
-                        if docker ps -a --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
-                            STATUS=$(docker inspect -f '{{.State.Status}}' ${CONTAINER_NAME})
-                            echo "📊 Statut du conteneur : ${STATUS}"
-                            
-                            if [ "${STATUS}" = "running" ]; then
-                                echo "✅ Le conteneur est en cours d'exécution"
-                                
-                                # Afficher les infos du conteneur
-                                echo "📋 Informations du conteneur :"
-                                docker inspect ${CONTAINER_NAME} | grep -E "\"Id\"|\"Image\"|\"State\"" | head -10
-                            else
-                                echo "❌ Le conteneur n'est pas en cours d'exécution"
-                                echo "Logs du conteneur :"
-                                docker logs ${CONTAINER_NAME} || true
-                                exit 1
-                            fi
-                        else
-                            echo "❌ Le conteneur ${CONTAINER_NAME} n'existe pas"
-                            exit 1
-                        fi
-                    '''
-                }
-            }
-        }
+                            string(credentialsId: 'JWT_SECRET_ID', variable: 'JWT_SECRET'),
+                            string(credentialsId: 'JWT_REFRESH_SECRET_ID', variable: 'JWT_REFRESH_SECRET'),
+                            string(credentialsId: 'SECRET_KEY_ID', variable: 'SECRET_KEY'),
 
-        stage('Port Check') {
-            steps {
-                script {
-                    echo "🌐 Vérification du port..."
-                    sh '''
-                        # Vérifier que le port est en écoute
-                        sleep 2
-                        if netstat -tln | grep -q ":${VITE_PORT} "; then
-                            echo "✅ Le port ${VITE_PORT} est actif"
-                        else
-                            echo "⚠️  Le port ${VITE_PORT} ne semble pas actif, vérification via docker..."
-                            docker port ${CONTAINER_NAME} || true
-                        fi
+                            string(credentialsId: 'MINIO_ACCESS_KEY_ID', variable: 'MINIO_ACCESS_KEY'),
+                            string(credentialsId: 'MINIO_SECRET_KEY_ID', variable: 'MINIO_SECRET_KEY'),
+                            string(credentialsId: 'MINIO_ENDPOINT_ID', variable: 'MINIO_ENDPOINT'),
+                            string(credentialsId: 'MINIO_PORT_ID', variable: 'MINIO_PORT'),
+                            string(credentialsId: 'MINIO_HOST_ID', variable: 'MINIO_HOST'),
+
+                            string(credentialsId: 'SMTP_HOST_ID', variable: 'SMTP_HOST'),
+                            string(credentialsId: 'SMTP_PORT_ID', variable: 'SMTP_PORT'),
+                            string(credentialsId: 'SMTP_USER_ID', variable: 'SMTP_USER'),
+                            string(credentialsId: 'SMTP_PASS_ID', variable: 'SMTP_PASS'),
+
+                            string(credentialsId: 'REDIS_HOST_ID', variable: 'REDIS_HOST'),
+                            string(credentialsId: 'REDIS_PORT_ID', variable: 'REDIS_PORT'),
+                            string(credentialsId: 'ADMIN_EMAIL_ESSG_ID', variable: 'ADMIN_EMAIL'),
+                            string(credentialsId: 'ADMIN_PASSWORD_ESSG_ID', variable: 'ADMIN_PASSWORD'),
+                    ]) {
+                        // Démarrer le conteneur en passant les variables environ nécessaires.
+                        // Les valeurs sensibles sont injectées par withCredentials et masquées dans les logs Jenkins.
+                        sh '''
+                    docker run -d \
+                        --memory ${MEMORY_LIMIT} \
+                        --memory-reservation ${MEMORY_RESERVATION} \
+                        --cpu-shares ${CPU_SHARES} \
+                        --name ${CONTAINER_NAME} \
+                        -p ${HOST_PORT}:${CONTAINER_PORT} \
+                        --restart unless-stopped \
+                        --log-driver ${LOG_DRIVER} \
+                        --log-opt max-size=${LOG_MAX_SIZE} \
+                        --log-opt max-file=${LOG_MAX_FILE} \
+                        -e "NODE_ENV=${NODE_ENV}" \
+                        -e "APP_ENV=${APP_ENV}" \
+                        -e "APP_PORT=${APP_PORT}" \
+                        -e "APP_URL=${APP_URL}" \
+                        -e "POSTGRES_HOST=${POSTGRES_HOST}" \
+                        -e "POSTGRES_PORT=${POSTGRES_PORT}" \
+                        -e "POSTGRES_USER=${POSTGRES_USER}" \
+                        -e "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
+                        -e "POSTGRES_DB=${POSTGRES_DB}" \
+                        -e "UPLOAD_PATH=${UPLOAD_PATH}" \
+                        -e "MINIO_ENDPOINT=${MINIO_ENDPOINT}" \
+                        -e "MINIO_HOST=${MINIO_HOST}" \
+                        -e "MINIO_PORT=${MINIO_PORT}" \
+                        -e "MINIO_USE_SSL=${MINIO_USE_SSL}" \
+                        -e "MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}" \
+                        -e "MINIO_SECRET_KEY=${MINIO_SECRET_KEY}" \
+                        -e "MINIO_BUCKET=${MINIO_BUCKET}" \
+                        -e "RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED}" \
+                        -e "HEALTH_MEMORY_LIMIT_MB=${HEALTH_MEMORY_LIMIT_MB}" \
+                        -e "PERF_LOG=${PERF_LOG}" \
+                        -e "PERF_SQL=${PERF_SQL}" \
+                        -e "PERF_SLOW_MS=${PERF_SLOW_MS}" \
+                        -e "JWT_SECRET=${JWT_SECRET}" \
+                        -e "JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}" \
+                        -e "SECRET_KEY=${SECRET_KEY}" \
+                        -e "SMTP_HOST=${SMTP_HOST}" \
+                        -e "SMTP_PORT=${SMTP_PORT}" \
+                        -e "SMTP_USER=${SMTP_USER}" \
+                        -e "SMTP_PASS=${SMTP_PASS}" \
+                        -e "REDIS_HOST=${REDIS_HOST}" \
+                        -e "REDIS_PORT=${REDIS_PORT}" \
+                        -e "ADMIN_EMAIL=${ADMIN_EMAIL}" \
+                        -e "ADMIN_PASSWORD=${ADMIN_PASSWORD}" \
+                        -e "CORS_ORIGINS=${CORS_ORIGINS}" \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                    sleep 3
+                    echo "Conteneur démarré (${CONTAINER_NAME}) — image ${IMAGE_NAME}:${IMAGE_TAG}"
                     '''
+                    } // end withCredentials
                 }
             }
         }
-    }
+    } // end stages
 
     post {
         success {
             script {
-                echo "✅ Pipeline terminé avec succès!"
+                echo "Pipeline terminé avec succès!"
                 sh '''
-                    echo "📊 Résumé du déploiement :"
+                    echo "Résumé du déploiement :"
                     echo "- Image : ${IMAGE_NAME}:${IMAGE_TAG}"
                     echo "- Conteneur : ${CONTAINER_NAME}"
-                    echo "- Port : ${VITE_PORT}"
-                    echo "- URL : http://localhost:${VITE_PORT}"
+                    echo "- Hôte -> Conteneur : ${HOST_PORT}:${CONTAINER_PORT}"
                     echo "- Mémoire : ${MEMORY_LIMIT} (réservation: ${MEMORY_RESERVATION})"
                     echo "- CPU Shares : ${CPU_SHARES}"
-                    echo ""
-                    echo "Accédez à l'application à http://localhost:${VITE_PORT}"
-                '''
+                    '''
             }
         }
-        
+
         failure {
             script {
-                echo "❌ Pipeline échoué!"
+                echo "Pipeline échoué — récupération de diagnostics (sans secrets)..."
                 sh '''
-                    echo "📋 Diagnostique :"
-                    echo "--- Logs du conteneur ---"
-                    docker logs ${CONTAINER_NAME} 2>&1 | tail -50 || echo "Conteneur non trouvé"
+                    echo "--- Logs du conteneur (si présent) ---"
+                    docker logs ${CONTAINER_NAME} 2>&1 | tail -n 200 || echo "Conteneur non trouvé"
                     echo ""
                     echo "--- Images disponibles ---"
                     docker images | grep ${IMAGE_NAME} || echo "Aucune image trouvée"
@@ -237,18 +205,9 @@ pipeline {
 
         always {
             script {
-                echo "🧹 Nettoyage..."
-                sh '''
-                    # Garder les workspace clean
-                    echo "✅ Workspace nettoyé"
-                '''
+                echo "Nettoyage workspace..."
             }
-        }
-
-        unstable {
-            script {
-                echo "⚠️  Pipeline instable"
-            }
+            cleanWs()
         }
     }
 }
