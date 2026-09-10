@@ -1,0 +1,282 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_CONTAINER_NAME = 'digital-ministere-backend'
+        DOCKER_IMAGE = 'digital-ministere-backend'
+        DOCKER_TAG = "${BUILD_NUMBER}"
+
+        POSTGRES_HOST = credentials('POSTGRES_HOST_ID')
+        POSTGRES_PORT = credentials('POSTGRES_PORT_ID')
+        POSTGRES_USER = credentials('POSTGRES_USER_ID')
+        POSTGRES_PASSWORD = credentials('POSTGRES_PASSWORD_ID')
+        POSTGRES_DB = 'digit_ministere'
+
+        DATABASE_URL = "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public"
+
+        KEYCLOAK_URL = 'https://auth.emit.mg'
+        KEYCLOAK_REALM = 'digit-ministere-realm'
+        KEYCLOAK_CLIENT_ID = 'digit-ministere-backend'
+        KEYCLOAK_CLIENT_SECRET = credentials('KEYCLOAK_DIGITAL_SECRET_ID')
+        KEYCLOAK_ADMIN = credentials('KEYCLOAK_ADMIN')
+        KEYCLOAK_ADMIN_PASSWORD = credentials('KEYCLOAK_ADMIN_PASSWORD')
+
+        MINIO_ENDPOINT = credentials('MINIO_ENDPOINT_ID')
+        MINIO_PORT = credentials('MINIO_PORT_ID')
+        MINIO_ACCESS_KEY = credentials('MINIO_ACCESS_KEY_ID')
+        MINIO_SECRET_KEY = credentials('MINIO_SECRET_KEY_ID')
+        MINIO_PUBLIC_ENDPOINT = "http://${MINIO_ENDPOINT}:${MINIO_PORT}"
+        MINIO_BUCKET_NAME = 'digitministere'
+        MINIO_USE_SSL = 'false'
+        MINIO_ENABLED = 'true'
+
+
+        REDIS_HOST = credentials('IP_SERVER_ID')
+        REDIS_PORT = credentials('REDIS_PORT_ID')
+        REDIS_PASSWORD = credentials('REDIS_PASSWORD_ID')
+
+        API_JWT_SECRET = credentials('API_JWT_SECRET_ID')
+
+        THROTTLER_LIMIT = '500'
+        FRONTEND_ORIGINS = 'https://digital-min.emit.mg'
+        BACKEND_URL = 'https://digit-min-api.emit.mg/api'
+
+        KEYCLOAK_FRONT_CLIENT_ID = 'digit-ministere'
+
+        PORT = '5002'
+        NODE_ENV = 'production'
+        SESSION = 'true'
+
+        // memory limit for the container
+        MEMORY_LIMIT = '1g'
+        CPU_LIMIT = '1.0'
+        RESERVE_MEMORY = '512m'
+
+        MAIL_HOST = credentials('MAIL_HOST_ID')
+        MAIL_PORT = credentials('MAIL_PORT_ID')
+        MAIL_USER = credentials('MAIL_USERNAME_ID')
+        MAIL_PASSWORD = credentials('MAIL_PASSWORD_ID')
+        MAIL_FROM = 'MESUPRES <noreply@mesupres.mg>'
+
+        TRESOR_API_URL = credentials('TRESOR_API_URL')
+        TRESOR_X_API_CLIENT_ID = credentials('TRESOR_X_API_CLIENT_ID')
+        TRESOR_HMAC_SECRET = credentials('TRESOR_HMAC_SECRET')
+        TRESOR_PRIVATE_KEY = credentials('TRESOR_PRIVATE_KEY')
+        TRESOR_STUDENT_WALLET_STATUS_TOKEN = credentials('TRESOR_STUDENT_WALLET_STATUS_TOKEN')
+
+        STUDENT_BACKEND_API = credentials('STUDENT_BACKEND_API')
+        STUDENT_PORTAL_BACKEND_AUTH_EMAIL = credentials('STUDENT_PORTAL_BACKEND_AUTH_EMAIL')
+        STUDENT_PORTAL_BACKEND_AUTH_PASSWORD = credentials('STUDENT_PORTAL_BACKEND_AUTH_PASSWORD')
+        STUDENT_PORTAL_BACKEND_TOKEN_TTL_SECONDS = credentials('STUDENT_PORTAL_BACKEND_TOKEN_TTL_SECONDS')
+        STUDENT_PORTAL_BACKEND_REQUEST_TIMEOUT_MS = credentials('STUDENT_PORTAL_BACKEND_REQUEST_TIMEOUT_MS')
+    }
+
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                echo 'Building Docker image...'
+
+                sh '''
+                docker build \
+                    --build-arg DATABASE_URL="${DATABASE_URL}" \
+                    --build-arg KEYCLOAK_URL="${KEYCLOAK_URL}" \
+                    --build-arg KEYCLOAK_REALM="${KEYCLOAK_REALM}" \
+                    --build-arg KEYCLOAK_CLIENT_ID="${KEYCLOAK_CLIENT_ID}" \
+                    --build-arg KEYCLOAK_CLIENT_SECRET="${KEYCLOAK_CLIENT_SECRET}" \
+                    --build-arg KEYCLOAK_ADMIN="${KEYCLOAK_ADMIN}" \
+                    --build-arg KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD}" \
+                    --build-arg MINIO_ENDPOINT="${MINIO_ENDPOINT}" \
+                    --build-arg MINIO_PORT="${MINIO_PORT}" \
+                    --build-arg MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY}" \
+                    --build-arg MINIO_SECRET_KEY="${MINIO_SECRET_KEY}" \
+                    --build-arg MINIO_BUCKET_NAME="${MINIO_BUCKET_NAME}" \
+                    --build-arg MINIO_USE_SSL="${MINIO_USE_SSL}" \
+                    --build-arg MINIO_ENABLED="${MINIO_ENABLED}" \
+                    --build-arg MINIO_PUBLIC_ENDPOINT="${MINIO_PUBLIC_ENDPOINT}" \
+                    --build-arg THROTTLER_LIMIT="${THROTTLER_LIMIT}" \
+                    --build-arg FRONTEND_ORIGINS="${FRONTEND_ORIGINS}" \
+                    --build-arg BACKEND_URL="${BACKEND_URL}" \
+                    --build-arg KEYCLOAK_FRONT_CLIENT_ID="${KEYCLOAK_FRONT_CLIENT_ID}" \
+                    --build-arg REDIS_HOST="${REDIS_HOST}" \
+                    --build-arg REDIS_PORT="${REDIS_PORT}" \
+                    --build-arg REDIS_PASSWORD="${REDIS_PASSWORD}" \
+                    --build-arg API_JWT_SECRET="${API_JWT_SECRET}" \
+                    --build-arg MAIL_HOST="${MAIL_HOST}" \
+                    --build-arg MAIL_PORT="${MAIL_PORT}" \
+                    --build-arg MAIL_USER="${MAIL_USER}" \
+                    --build-arg MAIL_PASSWORD="${MAIL_PASSWORD}" \
+                    --build-arg MAIL_FROM="${MAIL_FROM}" \
+                    --build-arg TRESOR_API_URL="${TRESOR_API_URL}" \
+                    --build-arg TRESOR_X_API_CLIENT_ID="${TRESOR_X_API_CLIENT_ID}" \
+                    --build-arg TRESOR_HMAC_SECRET="${TRESOR_HMAC_SECRET}" \
+                    --build-arg TRESOR_PRIVATE_KEY="${TRESOR_PRIVATE_KEY}" \
+                    --build-arg TRESOR_STUDENT_WALLET_STATUS_TOKEN="${TRESOR_STUDENT_WALLET_STATUS_TOKEN}" \
+                    --build-arg STUDENT_BACKEND_API="${STUDENT_BACKEND_API}" \
+                    --build-arg STUDENT_PORTAL_BACKEND_AUTH_EMAIL="${STUDENT_PORTAL_BACKEND_AUTH_EMAIL}" \
+                    --build-arg STUDENT_PORTAL_BACKEND_AUTH_PASSWORD="${STUDENT_PORTAL_BACKEND_AUTH_PASSWORD}" \
+                    --build-arg STUDENT_PORTAL_BACKEND_TOKEN_TTL_SECONDS="${STUDENT_PORTAL_BACKEND_TOKEN_TTL_SECONDS}" \
+                    --build-arg STUDENT_PORTAL_BACKEND_REQUEST_TIMEOUT_MS="${STUDENT_PORTAL_BACKEND_REQUEST_TIMEOUT_MS}" \
+                    --build-arg SESSION="${SESSION}" \
+                    --build-arg NODE_ENV="${NODE_ENV}" \
+                    -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                '''
+            }
+        }
+
+        stage('Cleanup Old Container') {
+            steps {
+                sh '''
+                if docker ps -a --format '{{.Names}}' | grep -w ${DOCKER_CONTAINER_NAME}; then
+                    docker stop ${DOCKER_CONTAINER_NAME}
+                    docker rm ${DOCKER_CONTAINER_NAME}
+                fi
+                '''
+            }
+        }
+
+        stage('Create Database Indexes') {
+            steps {
+                echo 'Creating database indexes (if missing)...'
+                sh '''
+                docker run --rm \
+                  --network host \
+                  -e PGPASSWORD="${POSTGRES_PASSWORD}" \
+                  postgres:15 \
+                  psql -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -d ${POSTGRES_DB} -v ON_ERROR_STOP=1 <<'SQL'
+                CREATE INDEX IF NOT EXISTS "idx_students_last_name"
+                    ON "public"."students"("last_name");
+
+                CREATE INDEX IF NOT EXISTS "idx_students_first_name"
+                    ON "public"."students"("first_name");
+
+                -- Composite index for combined name lookup
+                CREATE INDEX IF NOT EXISTS "idx_students_name_combined"
+                    ON "public"."students"("last_name", "first_name");
+
+                -- ============================================================================
+                -- PERFORMANCE INDEXES FOR REFERENCE DATA
+                -- ============================================================================
+
+                -- Training type, level, academic year lookups
+                CREATE INDEX IF NOT EXISTS "idx_training_type_name"
+                    ON "public"."training_types"("name");
+
+                CREATE INDEX IF NOT EXISTS "idx_level_name"
+                    ON "public"."levels"("name");
+
+                CREATE INDEX IF NOT EXISTS "idx_academic_year_label"
+                    ON "public"."academic_years"("year_label");
+
+                -- ============================================================================
+                -- BACCALAUREAT AND TRACK INDEXES
+                -- ============================================================================
+
+                -- Baccalaureat lookups by student
+                CREATE INDEX IF NOT EXISTS "idx_baccalaureat_student_id"
+                    ON "public"."baccalaureats"("student_id");
+
+                CREATE INDEX IF NOT EXISTS "idx_baccalaureat_student_serie"
+                    ON "public"."baccalaureats"("student_id", "serie");
+
+                -- Track lookups by major
+                CREATE INDEX IF NOT EXISTS "idx_track_major_institution"
+                    ON "public"."tracks"("major_id");
+
+                CREATE INDEX IF NOT EXISTS idx_students_national_id
+                    ON students (national_id);
+
+                CREATE INDEX IF NOT EXISTS idx_student_institutions_student_institution
+                    ON student_institutions (student_id, institution_id);
+
+                CREATE INDEX IF NOT EXISTS idx_student_institutions_institution_student
+                    ON student_institutions (institution_id, student_id);
+                SQL
+                '''
+            }
+        }
+
+        stage('Verify Redis Connection') {
+            steps {
+                echo 'Vérification de la connexion Redis...'
+                sh '''
+                docker run --rm \
+                  --network host \
+                  redis:8.4.0 \
+                  redis-cli -h ${REDIS_HOST} -p ${REDIS_PORT} -a ${REDIS_PASSWORD} PING | grep -q PONG || (echo "ERREUR: Redis inaccessible sur ${REDIS_HOST}:${REDIS_PORT}" && exit 1)
+                '''
+            }
+        }
+
+        stage('Deploy Application') {
+            steps {
+                echo 'Deploying application...'
+
+                sh '''
+                docker run -d \
+                    --name ${DOCKER_CONTAINER_NAME} \
+                    --restart unless-stopped \
+                    --memory ${MEMORY_LIMIT} \
+                    --memory-reservation ${RESERVE_MEMORY} \
+                    --cpus ${CPU_LIMIT} \
+                    --network host \
+                    -p ${PORT}:${PORT} \
+                    -e DATABASE_URL="${DATABASE_URL}" \
+                    -e KEYCLOAK_URL="${KEYCLOAK_URL}" \
+                    -e KEYCLOAK_REALM="${KEYCLOAK_REALM}" \
+                    -e KEYCLOAK_CLIENT_ID="${KEYCLOAK_CLIENT_ID}" \
+                    -e KEYCLOAK_CLIENT_SECRET="${KEYCLOAK_CLIENT_SECRET}" \
+                    -e KEYCLOAK_ADMIN="${KEYCLOAK_ADMIN}" \
+                    -e KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD}" \
+                    -e MINIO_ENDPOINT="${MINIO_ENDPOINT}" \
+                    -e MINIO_PORT="${MINIO_PORT}" \
+                    -e MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY}" \
+                    -e MINIO_SECRET_KEY="${MINIO_SECRET_KEY}" \
+                    -e MINIO_BUCKET_NAME="${MINIO_BUCKET_NAME}" \
+                    -e MINIO_USE_SSL="${MINIO_USE_SSL}" \
+                    -e MINIO_ENABLED="${MINIO_ENABLED}" \
+                    -e MINIO_PUBLIC_ENDPOINT="${MINIO_PUBLIC_ENDPOINT}" \
+                    -e THROTTLER_LIMIT="${THROTTLER_LIMIT}" \
+                    -e FRONTEND_ORIGINS="${FRONTEND_ORIGINS}" \
+                    -e BACKEND_URL="${BACKEND_URL}" \
+                    -e KEYCLOAK_FRONT_CLIENT_ID="${KEYCLOAK_FRONT_CLIENT_ID}" \
+                    -e REDIS_HOST="${REDIS_HOST}" \
+                    -e REDIS_PORT="${REDIS_PORT}" \
+                    -e REDIS_PASSWORD="${REDIS_PASSWORD}" \
+                    -e API_JWT_SECRET="${API_JWT_SECRET}" \
+                    -e MAIL_HOST="${MAIL_HOST}" \
+                    -e MAIL_PORT="${MAIL_PORT}" \
+                    -e MAIL_USER="${MAIL_USER}" \
+                    -e MAIL_PASSWORD="${MAIL_PASSWORD}" \
+                    -e MAIL_FROM="${MAIL_FROM}" \
+                    -e TRESOR_API_URL="${TRESOR_API_URL}" \
+                    -e TRESOR_X_API_CLIENT_ID="${TRESOR_X_API_CLIENT_ID}" \
+                    -e TRESOR_HMAC_SECRET="${TRESOR_HMAC_SECRET}" \
+                    -e TRESOR_PRIVATE_KEY="${TRESOR_PRIVATE_KEY}" \
+                    -e TRESOR_STUDENT_WALLET_STATUS_TOKEN="${TRESOR_STUDENT_WALLET_STATUS_TOKEN}" \
+                    -e STUDENT_BACKEND_API="${STUDENT_BACKEND_API}" \
+                    -e STUDENT_PORTAL_BACKEND_AUTH_EMAIL="${STUDENT_PORTAL_BACKEND_AUTH_EMAIL}" \
+                    -e STUDENT_PORTAL_BACKEND_AUTH_PASSWORD="${STUDENT_PORTAL_BACKEND_AUTH_PASSWORD}" \
+                    -e STUDENT_PORTAL_BACKEND_TOKEN_TTL_SECONDS="${STUDENT_PORTAL_BACKEND_TOKEN_TTL_SECONDS}" \
+                    -e STUDENT_PORTAL_BACKEND_REQUEST_TIMEOUT_MS="${STUDENT_PORTAL_BACKEND_REQUEST_TIMEOUT_MS}" \
+                    -e MAIL_FROM="${MAIL_FROM}" \
+                    -e SESSION="${SESSION}" \
+                    ${DOCKER_IMAGE}:${DOCKER_TAG}
+
+                sleep 10
+                if ! docker ps -f name=${DOCKER_CONTAINER_NAME} --format '{{.Status}}' | grep -q 'Up'; then
+                    echo "Erreur: Le conteneur a crashé après le démarrage."
+                    docker logs ${DOCKER_CONTAINER_NAME}
+                    exit 1
+                fi
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning workspace...'
+            cleanWs()
+        }
+    }
+}
