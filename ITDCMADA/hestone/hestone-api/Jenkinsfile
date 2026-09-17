@@ -1,0 +1,284 @@
+pipeline {
+    agent any
+
+    environment {
+        // Image / container
+        CONTAINER_NAME = 'hetsone-api'
+        IMAGE_NAME = 'hetsone-api'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+
+        // Ports
+        APP_PORT = '3177'      // port exposé sur l'hôte
+        CONTAINER_PORT = '3177'      // port utilisé par l'app dans le conteneur
+
+        // Ressources
+        MEMORY_LIMIT = '512m'
+        MEMORY_RESERVATION = '256m'
+        CPU_SHARES = '512'
+
+        // Logging
+        LOG_DRIVER = 'json-file'
+        LOG_MAX_SIZE = '10m'
+        LOG_MAX_FILE = '3'
+
+        // Application (production)
+        NODE_ENV = 'production'
+        APP_ENV = 'production'
+        APP_URL = "https://hetsone-api.itdcmada.com"
+        FRONTEND_URL = "https://hetsone.itdcmada.com"
+        API_VERSION = 'v1'
+        CORS_ORIGINS = 'http://localhost:3000,http://localhost:3001,https://hetsone-api.itdcmada.com,https://hetsone.itdcmada.com'
+
+        // ---- ORM (TypeORM) ----
+        TYPEORM_CONNECTION = postgres
+        TYPEORM_HOST = credentials('DB_HOST_ID')
+        TYPEORM_PORT = credentials('DB_PORT_ID')
+        TYPEORM_USERNAME = credentials('DB_USER_ID')
+        TYPEORM_PASSWORD = credentials('DB_PASSWORD_ID')
+        TYPEORM_DATABASE = 'hetsone'
+        TYPEORM_SYNCHRONIZE = 'false'
+        TYPEORM_LOGGING = 'false'
+        TYPEORM_MIGRATIONS_RUN = 'true'
+        TYPEORM_ENTITIES = 'dist/**/*.entity.js'
+        TYPEORM_MIGRATIONS = 'dist/database/migrations/*.js'
+
+        // ---- Redis ----
+        REDIS_HOST = credentials('REDIS_HOST_ID')
+        REDIS_PORT = credentials('REDIS_PORT_ID')
+        REDIS_PASSWORD = credentials('REDIS_PASSWORD_ID')
+        REDIS_DB = '0'
+        TICKET_RESERVATION_TTL_SECONDS = '600'
+
+        // ---- Authentification / JWT ----
+        JWT_SECRET = credentials('JWT_SECRET_ID')
+        JWT_ACCESS_EXPIRY = '15m'
+        JWT_REFRESH_SECRET = credentials('JWT_REFRESH_SECRET_ID')
+        JWT_REFRESH_EXPIRY = '7d'
+        BCRYPT_SALT_ROUNDS = '12'
+
+        // ----Google OAuth2----
+        GOOGLE_CLIENT_ID = credentials('GOOGLE_CLIENT_ID_ID')
+        GOOGLE_CLIENT_SECRET = credentials('GOOGLE_CLIENT_SECRET_ID')
+        GOOGLE_CALLBACK_URL = 'https://hetsone-api.itdcmada.com/api/v1/auth/google/callback'
+
+        // ---- Email (Nodemailer + Gmail SMTP en priorité, Resend en secours) ----
+        // Le service utilise Nodemailer SMTP dès que MAIL_USER / MAIL_PASSWORD sont
+        // de vraies identifiants ; sinon il retombe sur Resend API (RESEND_API_KEY).
+        //
+        // Option 1 (recommandée) : Nodemailer + Gmail SMTP
+        // App Password requis : https://myaccount.google.com/apppasswords
+        MAIL_HOST = credentials('MAILER_HOST_ID')
+        MAIL_PORT = credentials('MAILER_PORT_ID')
+        MAIL_USER = credentials('MAILER_USER_ID')
+        MAIL_PASSWORD = credentials('MAILER_PASSWORD_ID')
+        MAIL_FROM = 'HetsOne <contact@hetsone.mg>'
+        MAIL_SECURE = 'false'
+
+        // ---- MinIO (stockage des images uploadées) ----
+        // Console d'administration : http://localhost:9001
+        // En Docker l'hôte est le service `minio` ; hors Docker utilisez `localhost`.
+        MINIO_ENDPOINT = credentials('MINIO_ENDPOINT_ID')
+        MINIO_PORT = credentials('MINIO_PORT_ID')
+        MINIO_USE_SSL = 'false'
+        MINIO_ROOT_USER = credentials('MINIO_ROOT_USER_ID')
+        MINIO_ROOT_PASSWORD = credentials('MINIO_ROOT_PASSWORD_ID')
+        // Optionnel : identifiants dédiés au backend (sinon MINIO_ROOT_USER / MINIO_ROOT_PASSWORD)
+        MINIO_ACCESS_KEY = credentials('MINIO_ACCESS_KEY_ID')
+        MINIO_SECRET_KEY = credentials('MINIO_SECRET_KEY_ID')
+        MINIO_BUCKET = 'hetsone'
+        // Mettre à `false` pour garder le bucket privé (les URLs publiques ne seront alors plus servies)
+        MINIO_BUCKET_PUBLIC = 'true'
+        // URL publique utilisée dans les URLs renvoyées aux clients (bucket en lecture publique)
+        MINIO_PUBLIC_URL = 'https://minio.itdcmada.mg'
+
+        // ---- QR Code / Billetterie ----
+        QR_SIGNING_SECRET = credentials('QR_SIGNING_SECRET_ID')
+        QR_TOKEN_EXPIRY_MINUTES = '60'
+
+        // ---- Réservations / Commandes ----
+        TICKET_RESERVATION_TTL_SECONDS = 600
+        RESERVATION_CLEANUP_CRON = * /1 * * * *
+
+        // ----Paiements----
+        PAYMENT_PROVIDERS = 'mvola,orange,airtel,card'
+        PAYMENT_SANDBOX = 'false'
+
+        // ---- Plateforme ----
+        PLATFORM_NAME = 'Hetsone'
+        DEFAULT_CURRENCY = 'MGA'
+        SUPPORT_EMAIL = 'support@hetsone.mg'
+
+        // ---- Tokens / Vérification ----
+        PASSWORD_RESET_EXPIRY_MINUTES = '60'
+        EMAIL_VERIFICATION_EXPIRY_HOURS = '24'
+
+        // ---- Abonnement SaaS ----
+        TRIAL_DURATION_DAYS = '14'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Image') {
+            steps {
+                script {
+                    echo "Construction de l'image Docker ${IMAGE_NAME}:${IMAGE_TAG}..."
+                    sh '''
+                        docker build \
+                        --build-arg APP_PORT=${APP_PORT} \
+                        --build-arg NODE_ENV=${NODE_ENV} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                        
+                        echo "Image construite : ${IMAGE_NAME}:${IMAGE_TAG}"
+                        docker images | grep ${IMAGE_NAME} || true
+                    '''
+                }
+            }
+        }
+
+        stage('Stop Old Container') {
+            steps {
+                script {
+                    echo "Arrêt/suppression de l'ancien conteneur (si présent)..."
+                    sh '''
+                        OLD=$(docker ps -aq -f name=${CONTAINER_NAME} || true)
+                        if [ -n "$OLD" ]; then
+                        echo "Conteneur ${CONTAINER_NAME} détecté, arrêt en cours..."
+                        docker stop ${CONTAINER_NAME} || true
+                        sleep 2
+                        docker rm ${CONTAINER_NAME} || true
+                        echo "Ancien conteneur supprimé"
+                        else
+                        echo "Aucun conteneur ${CONTAINER_NAME} en cours d'exécution"
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                script {
+                    // Démarrer le conteneur en passant les variables environ nécessaires.
+                    // Les valeurs sensibles sont injectées par withCredentials et masquées dans les logs Jenkins.
+                    sh '''
+                    docker run -d \
+                        --memory ${MEMORY_LIMIT} \
+                        --memory-reservation ${MEMORY_RESERVATION} \
+                        --cpu-shares ${CPU_SHARES} \
+                        --name ${CONTAINER_NAME} \
+                        -p ${APP_PORT}:${CONTAINER_PORT} \
+                        --restart unless-stopped \
+                        --log-driver ${LOG_DRIVER} \
+                        --log-opt max-size=${LOG_MAX_SIZE} \
+                        --log-opt max-file=${LOG_MAX_FILE} \
+                        -e NODE_ENV=${NODE_ENV} \
+                        -e APP_ENV=${APP_ENV} \
+                        -e APP_URL=${APP_URL} \
+                        -e FRONTEND_URL=${FRONTEND_URL} \
+                        -e API_VERSION=${API_VERSION} \
+                        -e CORS_ORIGINS=${CORS_ORIGINS} \
+                        -e TYPEORM_CONNECTION=${TYPEORM_CONNECTION} \
+                        -e TYPEORM_HOST=${TYPEORM_HOST} \
+                        -e TYPEORM_PORT=${TYPEORM_PORT} \
+                        -e TYPEORM_USERNAME=${TYPEORM_USERNAME} \
+                        -e TYPEORM_PASSWORD=${TYPEORM_PASSWORD} \
+                        -e TYPEORM_DATABASE=${TYPEORM_DATABASE} \
+                        -e TYPEORM_SYNCHRONIZE=${TYPEORM_SYNCHRONIZE} \
+                        -e TYPEORM_LOGGING=${TYPEORM_LOGGING} \
+                        -e TYPEORM_MIGRATIONS_RUN=${TYPEORM_MIGRATIONS_RUN} \
+                        -e TYPEORM_ENTITIES=${TYPEORM_ENTITIES} \
+                        -e TYPEORM_MIGRATIONS=${TYPEORM_MIGRATIONS} \
+                        -e REDIS_HOST=${REDIS_HOST} \
+                        -e REDIS_PORT=${REDIS_PORT} \
+                        -e REDIS_PASSWORD=${REDIS_PASSWORD} \
+                        -e REDIS_DB=${REDIS_DB} \
+                        -e TICKET_RESERVATION_TTL_SECONDS=${TICKET_RESERVATION_TTL_SECONDS} \
+                        -e JWT_SECRET=${JWT_SECRET} \
+                        -e JWT_ACCESS_EXPIRY=${JWT_ACCESS_EXPIRY} \
+                        -e JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET} \
+                        -e JWT_REFRESH_EXPIRY=${JWT_REFRESH_EXPIRY} \
+                        -e BCRYPT_SALT_ROUNDS=${BCRYPT_SALT_ROUNDS} \
+                        -e GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID} \
+                        -e GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET} \
+                        -e GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL} \
+                        -e MAIL_HOST=${MAIL_HOST} \
+                        -e MAIL_PORT=${MAIL_PORT} \
+                        -e MAIL_USER=${MAIL_USER} \
+                        -e MAIL_PASSWORD=${MAIL_PASSWORD} \
+                        -e MAIL_FROM=${MAIL_FROM} \
+                        -e MAIL_SECURE=${MAIL_SECURE} \
+                        -e MINIO_ENDPOINT=${MINIO_ENDPOINT} \
+                        -e MINIO_PORT=${MINIO_PORT} \
+                        -e MINIO_USE_SSL=${MINIO_USE_SSL} \
+                        -e MINIO_ROOT_USER=${MINIO_ROOT_USER} \
+                        -e MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD} \
+                        -e MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY} \
+                        -e MINIO_SECRET_KEY=${MINIO_SECRET_KEY} \
+                        -e MINIO_BUCKET=${MINIO_BUCKET} \
+                        -e MINIO_BUCKET_PUBLIC=${MINIO_BUCKET_PUBLIC} \
+                        -e MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL} \
+                        -e QR_SIGNING_SECRET=${QR_SIGNING_SECRET} \
+                        -e QR_TOKEN_EXPIRY_MINUTES=${QR_TOKEN_EXPIRY_MINUTES} \
+                        -e TICKET_RESERVATION_TTL_SECONDS=${TICKET_RESERVATION_TTL_SECONDS} \
+                        -e RESERVATION_CLEANUP_CRON=${RESERVATION_CLEANUP_CRON} \
+                        -e PAYMENT_PROVIDERS=${PAYMENT_PROVIDERS} \
+                        -e PAYMENT_SANDBOX=${PAYMENT_SANDBOX} \
+                        -e PLATFORM_NAME=${PLATFORM_NAME} \
+                        -e DEFAULT_CURRENCY=${DEFAULT_CURRENCY} \
+                        -e SUPPORT_EMAIL=${SUPPORT_EMAIL} \
+                        -e PASSWORD_RESET_EXPIRY_MINUTES=${PASSWORD_RESET_EXPIRY_MINUTES} \
+                        -e EMAIL_VERIFICATION_EXPIRY_HOURS=${EMAIL_VERIFICATION_EXPIRY_HOURS} \
+                        -e TRIAL_DURATION_DAYS=${TRIAL_DURATION_DAYS} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}  
+                    sleep 3
+                    echo "Conteneur démarré (${CONTAINER_NAME}) — image ${IMAGE_NAME}:${IMAGE_TAG}"
+                    '''
+                }
+            }
+        }
+    } // end stages
+
+    post {
+        success {
+            script {
+                echo "Pipeline terminé avec succès!"
+                sh '''
+                    echo "Résumé du déploiement :"
+                    echo "- Image : ${IMAGE_NAME}:${IMAGE_TAG}"
+                    echo "- Conteneur : ${CONTAINER_NAME}"
+                    echo "- Hôte -> Conteneur : ${APP_PORT}:${CONTAINER_PORT}"
+                    echo "- Mémoire : ${MEMORY_LIMIT} (réservation: ${MEMORY_RESERVATION})"
+                    echo "- CPU Shares : ${CPU_SHARES}"
+                    '''
+            }
+        }
+
+        failure {
+            script {
+                echo "Pipeline échoué — récupération de diagnostics (sans secrets)..."
+                sh '''
+                    echo "--- Logs du conteneur (si présent) ---"
+                    docker logs ${CONTAINER_NAME} 2>&1 | tail -n 200 || echo "Conteneur non trouvé"
+                    echo ""
+                    echo "--- Images disponibles ---"
+                    docker images | grep ${IMAGE_NAME} || echo "Aucune image trouvée"
+                    echo ""
+                    echo "--- Conteneurs ---"
+                    docker ps -a --filter "name=${CONTAINER_NAME}" || true
+                '''
+            }
+        }
+
+        always {
+            script {
+                echo "Nettoyage workspace..."
+            }
+            cleanWs()
+        }
+    }
+}
