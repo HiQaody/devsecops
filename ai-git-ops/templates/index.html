@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI GitOps - Analyse Dockerfile & Jenkinsfile</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🤖 AI GitOps</h1>
+    <p>Collez l'URL GitHub → détection Dockerfile → audit conformité → génération Jenkinsfile <b>K3s</b> ou <b>Docker run</b></p>
+    <div class="badges">
+      <span class="badge">GitHub API</span><span class="badge">Docker Audit</span><span class="badge">K3s</span><span class="badge">Docker Run</span>
+    </div>
+  </div>
+
+  <div class="form-wrapper">
+    <div class="field">
+      <label>🔗 URL GitHub <span style="color:#ef4444">*</span></label>
+      <input id="github_url" class="input" placeholder="https://github.com/org/repo" value="">
+      <div class="hint">Ex: https://github.com/anomalyco/opencode — supporte aussi <code>.git</code> et <code>tree/main</code></div>
+    </div>
+
+    <div class="grid2">
+      <div class="field">
+        <label>🔑 Token GitHub (optionnel)</label>
+        <input id="token" class="input" placeholder="ghp_xxx (pour repos privés)" type="password">
+        <div class="hint">Non stocké, envoyé uniquement pour l'analyse</div>
+      </div>
+      <div class="field">
+        <label>🔌 PORT Container</label>
+        <input id="port" class="input" type="number" value="3000" min="1" max="65535">
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="field">
+        <label>📦 Nom image (optionnel)</label>
+        <input id="app_name" class="input" placeholder="auto depuis repo">
+        <div class="hint">Si vide, déduit du repo</div>
+      </div>
+      <div class="field">
+        <label>🌐 NodePort (mode K3s)</label>
+        <input id="node_port" class="input" type="number" value="30130" min="30000" max="32767">
+      </div>
+    </div>
+
+    <!-- Env vars (facultatif pour Jenkinsfile) -->
+    <div class="env-section">
+      <h3>🔧 Variables d'environnement (pour Jenkinsfile)</h3>
+      <div id="envContainer"></div>
+      <button type="button" class="btn-add" onclick="addEnvRow()">➕ Ajouter une variable</button>
+    </div>
+
+    <button id="btnAnalyze" class="btn-primary" onclick="analyze()">🔍 Analyser le repo</button>
+
+    <div id="loading" class="loading"><div class="spinner"></div><span>Analyse en cours...</span></div>
+    <div id="analyzeResult"></div>
+
+    <!-- Génération Jenkinsfile -->
+    <div id="genSection" class="gen-section hidden">
+      <h3>⚙️ Générer Jenkinsfile</h3>
+      <div class="mode-selector">
+        <label class="radio-card"><input type="radio" name="mode" value="k3s" checked><div><b>☸️ K3s</b><span>Harbor + kubectl apply (Deployment/Service/HPA)</span></div></label>
+        <label class="radio-card"><input type="radio" name="mode" value="docker"><div><b>🐳 Docker run</b><span>Harbor + docker run standalone (VM)</span></div></label>
+      </div>
+      <button class="btn-primary" onclick="generateJenkins()">🏗️ Générer Jenkinsfile</button>
+      <div id="jenkinsResult"></div>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

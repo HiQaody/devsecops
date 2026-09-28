@@ -5,7 +5,9 @@ WORKDIR /app
 
 # Arguments pour les variables de build
 ARG VITE_PORT
-ARG VITE_API_BASE_URL
+ARG VITE_API_URL
+ARG VITE_STREAM_URL
+ARG VITE_APP_NAME
 # Copy only package files to leverage layer caching
 COPY package*.json ./
 
@@ -21,7 +23,9 @@ COPY tsconfig.json ./
 
 # Create .env file for build
 RUN echo "VITE_PORT=${VITE_PORT}" > .env && \
-    echo "VITE_API_BASE_URL=${VITE_API_BASE_URL}" >> .env
+    echo "VITE_API_URL=${VITE_API_URL}" >> .env && \
+    echo "VITE_STREAM_URL=${VITE_STREAM_URL}" >> .env && \
+    echo "VITE_APP_NAME=${VITE_APP_NAME}" >> .env
 
 # Build the application
 RUN npm run build
@@ -37,11 +41,11 @@ COPY nginx-default.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Expose port
-EXPOSE 3170
+EXPOSE 3173
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:3170 || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:3173 || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]

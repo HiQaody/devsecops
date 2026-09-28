@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     environment {
-        CONTAINER_NAME      = 'hai-radio-admin'
-        IMAGE_NAME          = 'hai-radio-admin'
+        CONTAINER_NAME      = 'tsidikaway-front'
+        IMAGE_NAME          = 'tsidikaway-front'
         IMAGE_TAG           = "${BUILD_NUMBER}"
-        VITE_PORT           = '3175'
-        VITE_API_URL   = 'https://hai-radio-api.itdcmada.com'
+        VITE_PORT           = '3178'
+        VITE_API_URL   = 'https://tsidikaway-api.itdcmada.com'
         
         // Gestion Memory
         MEMORY_LIMIT        = '512m'

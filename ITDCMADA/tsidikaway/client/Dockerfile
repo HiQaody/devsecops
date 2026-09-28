@@ -17,7 +17,7 @@ COPY src ./src
 COPY public ./public
 COPY index.html ./
 COPY vite.config.ts ./
-COPY tsconfig.json tsconfig.app.json tsconfig.node.json ./
+COPY tsconfig.json ./
 
 # Create .env file for build
 RUN echo "VITE_PORT=${VITE_PORT}" > .env && \
@@ -37,11 +37,11 @@ COPY nginx-default.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Expose port
-EXPOSE 3175
+EXPOSE 3178
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:3175 || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:3178 || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]

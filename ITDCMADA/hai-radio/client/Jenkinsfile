@@ -2,12 +2,14 @@ pipeline {
     agent any
 
     environment {
-        CONTAINER_NAME      = 'essg-front'
-        IMAGE_NAME          = 'essg-front'
+        CONTAINER_NAME      = 'hai-radio-front'
+        IMAGE_NAME          = 'hai-radio-front'
         IMAGE_TAG           = "${BUILD_NUMBER}"
-        VITE_PORT           = '3170'
-        VITE_API_BASE_URL   = 'https://essg-api.itdcmada.com'
-        
+        VITE_PORT           = '3173'
+        VITE_API_URL   = 'https://hai-radio-api.itdcmada.com'
+        VITE_STREAM_URL = 'https://ton-stream-radio.com/live'
+        VITE_APP_NAME = 'HAI-RADIO'
+
         // Gestion Memory
         MEMORY_LIMIT        = '512m'
         MEMORY_RESERVATION  = '256m'
@@ -24,9 +26,10 @@ pipeline {
                     sh '''
                         docker build \
                             --build-arg VITE_PORT=${VITE_PORT} \
-                            --build-arg VITE_API_BASE_URL=${VITE_API_BASE_URL} \
-                            -t ${IMAGE_NAME}:${IMAGE_TAG} \
-                            -t ${IMAGE_NAME}:latest .
+                            --build-arg VITE_API_URL=${VITE_API_URL} \
+                            --build-arg VITE_STREAM_URL=${VITE_STREAM_URL} \
+                            --build-arg VITE_APP_NAME=${VITE_APP_NAME} \
+                            -t ${IMAGE_NAME}:${IMAGE_TAG} .
                         
                         echo "Image construite : ${IMAGE_NAME}:${IMAGE_TAG}"
                         docker images | grep ${IMAGE_NAME}
@@ -67,8 +70,10 @@ pipeline {
                             --name ${CONTAINER_NAME} \
                             -p ${VITE_PORT}:${VITE_PORT} \
                             --restart unless-stopped \
-                            -e VITE_API_BASE_URL=${VITE_API_BASE_URL} \
+                            -e VITE_API_URL=${VITE_API_URL} \
                             -e VITE_PORT=${VITE_PORT} \
+                            -e VITE_STREAM_URL=${VITE_STREAM_URL} \
+                            -e VITE_APP_NAME=${VITE_APP_NAME} \
                             --log-driver json-file \
                             --log-opt max-size=10m \
                             --log-opt max-file=3 \

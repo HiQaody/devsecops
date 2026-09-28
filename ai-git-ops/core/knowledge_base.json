@@ -1,0 +1,70 @@
+{
+  "version": "1.0.0",
+  "description": "Base de connaissance Jenkinsfile - DevSecOps PNUD-AGVM",
+  "registry": "harbor.tsirylab.com",
+  "harbor_project": "pnud-agvm",
+  "namespace": "pnud-agvm",
+  "technologies": {
+    "node": {
+      "patterns": ["package.json", "package-lock.json", "yarn.lock", "FROM node"],
+      "base_images": ["node:20-slim", "node:20-alpine", "node:20.11.1-slim"],
+      "build_cmd": "npm ci --ignore-scripts && npm cache clean --force",
+      "run_cmd": "node dist/main",
+      "compliance_rules": [
+        "FROM doit être node:20-slim ou alpine (pas :latest)",
+        "Doit contenir USER node / USER 1000 (non-root)",
+        "Doit avoir EXPOSE ${PORT} et ARG PORT",
+        "Ne pas faire npm install avec --force sans cache clean"
+      ]
+    },
+    "python": {
+      "patterns": ["requirements.txt", "pyproject.toml", "Pipfile", "FROM python"],
+      "base_images": ["python:3.11-slim", "python:3.12-slim"],
+      "build_cmd": "pip install --no-cache-dir -r requirements.txt",
+      "run_cmd": "python main.py",
+      "compliance_rules": [
+        "FROM python:3.11-slim minimum",
+        "USER non-root requis",
+        "pip install avec --no-cache-dir"
+      ]
+    },
+    "java": {
+      "patterns": ["pom.xml", "build.gradle", "FROM openjdk", "FROM eclipse-temurin"],
+      "base_images": ["eclipse-temurin:17-jre-alpine", "openjdk:17-slim"],
+      "build_cmd": "mvn clean package -DskipTests",
+      "run_cmd": "java -jar target/*.jar",
+      "compliance_rules": [
+        "Multi-stage build requis (builder + runtime)",
+        "JRE alpine, pas JDK en runtime"
+      ]
+    },
+    "go": {
+      "patterns": ["go.mod", "FROM golang"],
+      "base_images": ["golang:1.21-alpine"],
+      "build_cmd": "go build -o app .",
+      "run_cmd": "./app"
+    }
+  },
+  "compliance_global": [
+    "FROM sans tag :latest interdit",
+    "USER root interdit (doit etre 1000, 101 ou node)",
+    "EXPOSE doit correspondre au PORT",
+    "readOnlyRootFilesystem:true recommandé",
+    "Pas de secrets en dur (ENV avec valeur en clair)",
+    "COPY . . après npm ci pour cache optimal"
+  ],
+  "modes": {
+    "k3s": {
+      "label": "K3s / Kubernetes",
+      "description": "Build Harbor + deploy K8s via kubectl (Deployment, Service NodePort, HPA, Secret)",
+      "requires": ["Dockerfile", "k8s manifests", "harbor-credentials", "kubeconfig-jenkins"],
+      "stages": ["Build & Push", "Deploy to K3s"]
+    },
+    "docker": {
+      "label": "Docker Run (VM / sans K8s)",
+      "description": "Build + push Harbor + docker run standalone avec --env-file / -e",
+      "requires": ["Dockerfile", "harbor-credentials"],
+      "stages": ["Build & Push", "Deploy (docker run)"]
+    }
+  }
+}

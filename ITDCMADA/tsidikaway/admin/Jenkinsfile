@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     environment {
-        CONTAINER_NAME      = 'hai-radio-admin'
-        IMAGE_NAME          = 'hai-radio-admin'
+        CONTAINER_NAME      = 'essg-admin'
+        IMAGE_NAME          = 'essg-admin'
         IMAGE_TAG           = "${BUILD_NUMBER}"
-        VITE_PORT           = '3175'
-        VITE_API_URL   = 'https://hai-radio-api.itdcmada.com'
+        VITE_PORT           = '3172'
+        VITE_API_BASE_URL   = 'https://essg-api.itdcmada.com'
         
         // Gestion Memory
         MEMORY_LIMIT        = '512m'
@@ -24,7 +24,7 @@ pipeline {
                     sh '''
                         docker build \
                             --build-arg VITE_PORT=${VITE_PORT} \
-                            --build-arg VITE_API_URL=${VITE_API_URL} \
+                            --build-arg VITE_API_BASE_URL=${VITE_API_BASE_URL} \
                             -t ${IMAGE_NAME}:${IMAGE_TAG} \
                             -t ${IMAGE_NAME}:latest .
                         
@@ -67,7 +67,7 @@ pipeline {
                             --name ${CONTAINER_NAME} \
                             -p ${VITE_PORT}:${VITE_PORT} \
                             --restart unless-stopped \
-                            -e VITE_API_URL=${VITE_API_URL} \
+                            -e VITE_API_BASE_URL=${VITE_API_BASE_URL} \
                             -e VITE_PORT=${VITE_PORT} \
                             --log-driver json-file \
                             --log-opt max-size=10m \
