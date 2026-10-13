@@ -1,0 +1,199 @@
+pipeline {
+    agent any
+
+    environment {
+        // Image / container
+        CONTAINER_NAME = 'api-edt-essg'
+        IMAGE_NAME = 'api-edt-essg'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+
+        // Ports
+        HOST_PORT = '3174'      // port exposé sur l'hôte
+        CONTAINER_PORT = '3174'      // port utilisé par l'app dans le conteneur
+
+        // Ressources
+        MEMORY_LIMIT = '512m'
+        MEMORY_RESERVATION = '256m'
+        CPU_SHARES = '512'
+
+        // Application (production)
+        NODE_ENV = 'production'
+        APP_ENV = 'production'
+        PORT = "${CONTAINER_PORT}"
+        APP_URL = "http://localhost:${HOST_PORT}"
+        DB_DATABASE = 'edt-essg'
+        CORS_ORIGINS = 'http://localhost:3000,http://localhost:3001,https://api-edt-essg.univ-fianarantsoa.mg,https://edt-essg.univ-fianarantsoa.mg,https://edt-essg-admin.univ-fianarantsoa.mg'
+
+    
+        MINIO_BUCKET = 'edt-essg'
+        MINIO_USE_SSL = 'false'
+        RATE_LIMIT_ENABLED = 'true'
+        HEALTH_MEMORY_LIMIT_MB = '512'
+        PERF_LOG = 'false'
+        PERF_SQL = 'false'
+        PERF_SLOW_MS = '400'
+        JWT_EXPIRES_IN = '1h'
+
+        // Logging options
+        LOG_DRIVER = 'json-file'
+        LOG_MAX_SIZE = '10m'
+        LOG_MAX_FILE = '3'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Image') {
+            steps {
+                script {
+                    echo "Construction de l'image Docker ${IMAGE_NAME}:${IMAGE_TAG}..."
+                    sh '''
+                        docker build \
+                        --build-arg PORT=${PORT} \
+                        --build-arg NODE_ENV=${NODE_ENV} \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                        
+                        echo "Image construite : ${IMAGE_NAME}:${IMAGE_TAG}"
+                        docker images | grep ${IMAGE_NAME} || true
+                    '''
+                }
+            }
+        }
+
+        stage('Stop Old Container') {
+            steps {
+                script {
+                    echo "Arrêt/suppression de l'ancien conteneur (si présent)..."
+                    sh '''
+                        OLD=$(docker ps -aq -f name=${CONTAINER_NAME} || true)
+                        if [ -n "$OLD" ]; then
+                        echo "Conteneur ${CONTAINER_NAME} détecté, arrêt en cours..."
+                        docker stop ${CONTAINER_NAME} || true
+                        sleep 2
+                        docker rm ${CONTAINER_NAME} || true
+                        echo "Ancien conteneur supprimé"
+                        else
+                        echo "Aucun conteneur ${CONTAINER_NAME} en cours d'exécution"
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                script {
+                    echo "Déploiement du conteneur ${IMAGE_NAME}:${IMAGE_TAG}..."
+                    // Injecter les credentials depuis Jenkins (IDs listés dans votre message)
+                    withCredentials([
+                            string(credentialsId: 'DB_HOST_ID', variable: 'DB_HOST'),
+                            string(credentialsId: 'DB_PORT_ID', variable: 'DB_PORT'),
+                            string(credentialsId: 'DB_USER_ID', variable: 'DB_USERNAME'),
+                            string(credentialsId: 'DB_PASSWORD_ID', variable: 'DB_PASSWORD'),
+
+                            string(credentialsId: 'JWT_SECRET_ID', variable: 'JWT_SECRET'),
+                            string(credentialsId: 'JWT_REFRESH_SECRET_ID', variable: 'JWT_REFRESH_SECRET'),
+                            string(credentialsId: 'SECRET_KEY_ID', variable: 'SECRET_KEY'),
+
+                            string(credentialsId: 'MINIO_ACCESS_KEY_ID', variable: 'MINIO_ACCESS_KEY'),
+                            string(credentialsId: 'MINIO_SECRET_KEY_ID', variable: 'MINIO_SECRET_KEY'),
+                            string(credentialsId: 'MINIO_ENDPOINT_ID', variable: 'MINIO_ENDPOINT'),
+                            string(credentialsId: 'MINIO_PORT_ID', variable: 'MINIO_PORT'),
+
+                            string(credentialsId: 'REDIS_HOST_ID', variable: 'REDIS_HOST'),
+                            string(credentialsId: 'REDIS_PORT_ID', variable: 'REDIS_PORT'),
+                    ]) {
+                        // Démarrer le conteneur en passant les variables environ nécessaires.
+                        // Les valeurs sensibles sont injectées par withCredentials et masquées dans les logs Jenkins.
+                        sh '''
+                    docker run -d \
+                        --memory ${MEMORY_LIMIT} \
+                        --memory-reservation ${MEMORY_RESERVATION} \
+                        --cpu-shares ${CPU_SHARES} \
+                        --name ${CONTAINER_NAME} \
+                        -p ${HOST_PORT}:${CONTAINER_PORT} \
+                        --restart unless-stopped \
+                        --log-driver ${LOG_DRIVER} \
+                        --log-opt max-size=${LOG_MAX_SIZE} \
+                        --log-opt max-file=${LOG_MAX_FILE} \
+                        -e "NODE_ENV=${NODE_ENV}" \
+                        -e "APP_ENV=${APP_ENV}" \
+                        -e "PORT=${PORT}" \
+                        -e "APP_URL=${APP_URL}" \
+                        -e "DB_HOST=${DB_HOST}" \
+                        -e "DB_PORT=${DB_PORT}" \
+                        -e "DB_USERNAME=${DB_USERNAME}" \
+                        -e "DB_PASSWORD=${DB_PASSWORD}" \
+                        -e "DB_DATABASE=${DB_DATABASE}" \
+                        -e "UPLOAD_PATH=${UPLOAD_PATH}" \
+                        -e "MINIO_ENDPOINT=${MINIO_ENDPOINT}" \
+                        -e "MINIO_PORT=${MINIO_PORT}" \
+                        -e "MINIO_USE_SSL=${MINIO_USE_SSL}" \
+                        -e "MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}" \
+                        -e "MINIO_SECRET_KEY=${MINIO_SECRET_KEY}" \
+                        -e "MINIO_BUCKET=${MINIO_BUCKET}" \
+                        -e "RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED}" \
+                        -e "HEALTH_MEMORY_LIMIT_MB=${HEALTH_MEMORY_LIMIT_MB}" \
+                        -e "PERF_LOG=${PERF_LOG}" \
+                        -e "PERF_SQL=${PERF_SQL}" \
+                        -e "PERF_SLOW_MS=${PERF_SLOW_MS}" \
+                        -e "JWT_SECRET=${JWT_SECRET}" \
+                        -e "JWT_EXPIRES_IN=${JWT_EXPIRES_IN}" \
+                        -e "JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}" \
+                        -e "SECRET_KEY=${SECRET_KEY}" \
+                        -e "REDIS_HOST=${REDIS_HOST}" \
+                        -e "REDIS_PORT=${REDIS_PORT}" \
+                        -e "CORS_ORIGINS=${CORS_ORIGINS}" \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                    sleep 3
+                    echo "Conteneur démarré (${CONTAINER_NAME}) — image ${IMAGE_NAME}:${IMAGE_TAG}"
+                    '''
+                    } // end withCredentials
+                }
+            }
+        }
+    } // end stages
+
+    post {
+        success {
+            script {
+                echo "Pipeline terminé avec succès!"
+                sh '''
+                    echo "Résumé du déploiement :"
+                    echo "- Image : ${IMAGE_NAME}:${IMAGE_TAG}"
+                    echo "- Conteneur : ${CONTAINER_NAME}"
+                    echo "- Hôte -> Conteneur : ${HOST_PORT}:${CONTAINER_PORT}"
+                    echo "- Mémoire : ${MEMORY_LIMIT} (réservation: ${MEMORY_RESERVATION})"
+                    echo "- CPU Shares : ${CPU_SHARES}"
+                    '''
+            }
+        }
+
+        failure {
+            script {
+                echo "Pipeline échoué — récupération de diagnostics (sans secrets)..."
+                sh '''
+                    echo "--- Logs du conteneur (si présent) ---"
+                    docker logs ${CONTAINER_NAME} 2>&1 | tail -n 200 || echo "Conteneur non trouvé"
+                    echo ""
+                    echo "--- Images disponibles ---"
+                    docker images | grep ${IMAGE_NAME} || echo "Aucune image trouvée"
+                    echo ""
+                    echo "--- Conteneurs ---"
+                    docker ps -a --filter "name=${CONTAINER_NAME}" || true
+                '''
+            }
+        }
+
+        always {
+            script {
+                echo "Nettoyage workspace..."
+            }
+            cleanWs()
+        }
+    }
+}
